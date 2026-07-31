@@ -320,11 +320,4 @@ def api_search():
 
 
 if __name__ == "__main__":
-        report = generate_report(engine.to_dict(result))
-        return jsonify(report)
-    except Exception as e:
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
-if __name__ == "__main__":
     app.run(debug=True)
