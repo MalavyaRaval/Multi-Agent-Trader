@@ -1,0 +1,486 @@
+[
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-29T02:05:14.405161"
+  },
+  {
+    "type": "analysis",
+    "symbol": "MSFT",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-29T02:06:49.081443"
+  },
+  {
+    "type": "order",
+    "symbol": "MSFT",
+    "side": "buy",
+    "qty": 5,
+    "notional": null,
+    "order_id": "4b2eb450-add8-4841-95f2-c78ef5de394d",
+    "order_status": "accepted",
+    "reason": "",
+    "confidence": 0.0,
+    "context": {},
+    "recorded_at": "2026-07-29T02:07:05.362925"
+  },
+  {
+    "type": "analysis",
+    "symbol": "MSFT",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-29T02:07:12.475531"
+  },
+  {
+    "type": "analysis",
+    "symbol": "GOOGLE",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-29T02:07:30.926858"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-29T02:07:59.179817"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-30T21:53:07.750062"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-30T21:56:24.637765"
+  },
+  {
+    "type": "order",
+    "symbol": "AAPL",
+    "side": "buy",
+    "qty": 1,
+    "notional": null,
+    "order_id": "7bd9be6a-9543-45f1-a33c-5ad20fc62a41",
+    "order_status": "accepted",
+    "reason": "",
+    "confidence": 0.0,
+    "context": {},
+    "recorded_at": "2026-07-30T21:56:31.096081"
+  },
+  {
+    "type": "order",
+    "symbol": "AAPL",
+    "side": "buy",
+    "qty": 1,
+    "notional": null,
+    "order_id": "39b8a131-bd9b-46d7-aa12-8eb81a3ea844",
+    "order_status": "accepted",
+    "reason": "",
+    "confidence": 0.0,
+    "context": {},
+    "recorded_at": "2026-07-30T21:56:40.622869"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-30T21:56:48.507686"
+  },
+  {
+    "type": "analysis",
+    "symbol": "MSFT",
+    "action": "hold",
+    "confidence": 1.0,
+    "reason": "No strong signals",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No swing setup",
+          "raw_score": 0.0
+        }
+      ],
+      "agent_score": 0.0
+    },
+    "recorded_at": "2026-07-30T21:56:55.474422"
+  },
+  {
+    "type": "order",
+    "symbol": "MSFT",
+    "side": "sell",
+    "qty": 1,
+    "notional": null,
+    "order_id": "2e5fb77d-8ca0-4353-9244-4934551cfb77",
+    "order_status": "accepted",
+    "reason": "",
+    "confidence": 0.0,
+    "context": {},
+    "recorded_at": "2026-07-30T21:57:00.493653"
+  }
+]

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Agent Trading Dashboard</title>
+    <style>
+        :root {
+            --bg: #07111f;
+            --panel: #101b2d;
+            --panel-2: #16233a;
+            --text: #f5f7fb;
+            --muted: #8fa0b8;
+            --accent: #4f8cff;
+            --accent-2: #2dd4bf;
+            --accent-3: #f59e0b;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --border: #243449;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            background: radial-gradient(circle at top left, #12233d 0%, var(--bg) 60%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: rgba(16, 27, 45, 0.95);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 24px 28px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(90deg, rgba(79,140,255,0.15), rgba(45,212,191,0.1));
+        }
+
+        .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        h1 { margin: 0; font-size: 1.6rem; }
+        .subtitle { margin-top: 6px; color: var(--muted); font-size: 0.95rem; }
+
+        .status-pill {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(45,212,191,0.16);
+            color: var(--accent-2);
+            border: 1px solid rgba(45,212,191,0.25);
+            font-size: 0.9rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            gap: 0;
+        }
+
+        .sidebar {
+            padding: 22px;
+            background: var(--panel-2);
+            border-right: 1px solid var(--border);
+        }
+
+        .card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 0.95rem;
+            color: var(--accent-2);
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            color: var(--muted);
+            font-size: 0.92rem;
+        }
+
+        .stat strong { color: var(--text); }
+
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: filter 0.15s;
+        }
+        .btn:hover { filter: brightness(1.12); }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), #6ba3ff); color: white; }
+        .btn-success { background: linear-gradient(135deg, var(--success), #4ade80); color: white; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #f87171); color: white; }
+        .btn-small { padding: 6px 10px; font-size: 0.8rem; }
+
+        .main-panel {
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 600px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--muted);
+            background: transparent;
+            border: 1px solid transparent;
+        }
+        .tab.active {
+            background: rgba(79,140,255,0.12);
+            color: var(--accent);
+            border-color: rgba(79,140,255,0.2);
+        }
+        .tab:hover:not(.active) { color: var(--text); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .chat-window {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            height: 360px;
+            overflow-y: auto;
+            padding: 14px;
+            background: linear-gradient(180deg, rgba(7,17,31,0.95), rgba(10,20,34,0.95));
+        }
+
+        .message {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 12px;
+            border-radius: 12px;
+            line-height: 1.45;
+            font-size: 0.95rem;
+            word-break: break-word;
+        }
+
+        .user-message .message-bubble {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--accent), #6ba3ff);
+            color: white;
+        }
+
+        .agent-message .message-bubble {
+            align-self: flex-start;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--text);
+        }
+
+        .message-meta {
+            font-size: 0.75rem;
+            color: var(--muted);
+            padding: 0 2px;
+        }
+
+        .signal-card {
+            margin-top: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background: rgba(79, 140, 255, 0.12);
+            border: 1px solid rgba(79, 140, 255, 0.18);
+        }
+
+        .signal-card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-2);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .signal-item {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 0.85rem;
+        }
+
+        .signal-item span { display: block; color: var(--muted); margin-bottom: 4px; }
+        .signal-item strong { color: var(--text); }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .input-area select,
+        .input-area input[type="text"],
+        .input-area input[type="number"] {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: #0d1728;
+            color: var(--text);
+            outline: none;
+        }
+
+        .input-area button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), #6ea7ff);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Agent Communication Log */
+        .comm-log {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            height: 500px;
+            overflow-y: auto;
+            padding: 12px;
+            background: rgba(7,17,31,0.7);
+            font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+            font-size: 0.82rem;
+        }
+
+        .comm-entry {
+            padding: 6px 8px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            border-left: 3px solid var(--accent);
+            background: rgba(255,255,255,0.02);
+        }
+        .comm-entry.from-market { border-left-color: #60a5fa; }
+        .comm-entry.from-technical { border-left-color: #a78bfa; }
+        .comm-entry.from-fundamental { border-left-color: #fbbf24; }
+        .comm-entry.from-news { border-left-color: #f472b6; }
+        .comm-entry.from-risk { border-left-color: #ef4444; }
+        .comm-entry.from-execution { border-left-color: #22c55e; }
+        .comm-entry.from-portfolio { border-left-color: #2dd4bf; }
+        .comm-entry.from-user { border-left-color: var(--accent-3); }
+
+        .comm-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 0.75rem;
+            margin-bottom: 2px;
+        }
+        .comm-from { font-weight: 600; color: var(--text); }
+        .comm-msg { color: #cbd5e1; }
+
+        /* Multi-Agent Analysis */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .analysis-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .analysis-card h4 {
+            margin: 0 0 8px;
+            font-size: 0.9rem;
+            color: var(--accent-2);
+        }
+        .analysis-card .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .badge-buy { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-sell { background: rgba(239,68,68,0.15); color: #f87171; }
+        .badge-hold { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .badge-high { background: rgba(239,68,68,0.15); color: #f87171; }
+        .badge-medium { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .badge-low { background: rgba(34,197,94,0.15); color: #4ade80; }
+
+        .trade-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .positions-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        .positions-table th, .positions-table td {
+            text-align: left;
+            padding: 8px 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .positions-table th { color: var(--muted); font-weight: 500; }
+
+        .backtest-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .backtest-stat {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .backtest-stat .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+        .backtest-stat .value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .screener-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .screener-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .screener-card .sym {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent-2);
+        }
+        .screener-card .score {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 1100px) {
+            .dashboard-grid { grid-template-columns: 240px 1fr; }
+            .comm-panel { display: none; }
+        }
+        @media (max-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title-row">
+                <div>
+                    <h1>Multi-Agent Trading Dashboard</h1>
+                    <div class="subtitle">AI agents analyze, discuss, and trade — you watch and intervene.</div>
+                </div>
+                <div class="status-pill" id="status-pill">Paper Trading Live</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <aside class="sidebar">
+                <div class="card">
+                    <h3>Account Snapshot</h3>
+                    <div class="stat"><span>Cash</span><strong id="acc-cash">${{ account_info.cash }}</strong></div>
+                    <div class="stat"><span>Portfolio</span><strong id="acc-portfolio">${{ account_info.portfolio_value }}</strong></div>
+                    <div class="stat"><span>Buying Power</span><strong id="acc-bp">${{ account_info.buying_power }}</strong></div>
+                    <div class="stat"><span>Equity</span><strong id="acc-equity">${{ account_info.equity }}</strong></div>
+                    <button class="btn btn-primary btn-small" style="width:100%;margin-top:8px;" onclick="refreshAccount()">Refresh</button>
+                </div>
+
+                <div class="card">
+                    <h3>Positions</h3>
+                    <div id="positions-container">
+                        <div style="color:var(--muted);font-size:0.85rem;">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Screener</h3>
+                    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;">Find symbols with momentum + volume.</div>
+                    <button class="btn btn-primary btn-small" style="width:100%;" onclick="runScreener()">Run Screener</button>
+                    <div id="screener-results" style="margin-top:10px;"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Autonomous Trading</h3>
+                    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;">
+                        Agents will analyze symbols on a schedule and log decisions.
+                    </div>
+                    <div class="trade-controls">
+                        <button class="btn btn-success btn-small" onclick="startAutonomous()">Start Loop</button>
+                        <button class="btn btn-danger btn-small" onclick="stopAutonomous()">Stop</button>
+                    </div>
+                    <div id="autonomous-status" style="margin-top:8px;font-size:0.8rem;color:var(--muted);">Stopped</div>
+                </div>
+            </aside>
+
+            <section class="main-panel">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('chat')">Agent Chat</div>
+                    <div class="tab" onclick="switchTab('analysis')">Multi-Agent Analysis</div>
+                    <div class="tab" onclick="switchTab('history')">Trade History</div>
+                    <div class="tab" onclick="switchTab('backtest')">Backtest</div>
+                </div>
+
+                <!-- Chat Tab -->
+                <div id="tab-chat" class="tab-content active">
+                    <div class="chat-window" id="chat-window">
+                        <div class="message agent-message">
+                            <div class="message-bubble">Welcome back. Choose an agent and ask for account info, a stock quote, or a market analysis.</div>
+                            <div class="message-meta">System</div>
+                        </div>
+                    </div>
+                    <div class="input-area">
+                        <select id="agent-select">
+                            <option value="trading_agent">Trading Agent</option>
+                            <option value="market_data_collector">Market Data Collector</option>
+                            <option value="technical_agent">Technical Agent</option>
+                        </select>
+                        <input type="text" id="user-input" placeholder="Ask your agent something...">
+                        <button onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+
+                <!-- Analysis Tab -->
+                <div id="tab-analysis" class="tab-content">
+                    <div class="input-area" style="margin-bottom:8px;">
+                        <input type="text" id="analysis-symbol" placeholder="Symbol (e.g. AAPL)" value="AAPL">
+                        <button class="btn btn-primary" onclick="runAnalysis()">Run Analysis</button>
+                    </div>
+                    <div id="analysis-results" style="display:none;">
+                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                            <h3 style="margin:0;">Results</h3>
+                            <span id="analysis-action" class="badge badge-hold">HOLD</span>
+                            <span id="analysis-confidence" style="font-size:0.85rem;color:var(--muted);"></span>
+                        </div>
+                        <div class="analysis-grid" id="analysis-grid"></div>
+                    </div>
+                    <div id="analysis-loading" style="display:none;color:var(--muted);padding:20px;">Running multi-agent analysis...</div>
+                </div>
+
+                <!-- Trade History Tab -->
+                <div id="tab-history" class="tab-content">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h3 style="margin:0;">Trade & Analysis History</h3>
+                        <button class="btn btn-primary btn-small" onclick="loadHistory()">Refresh</button>
+                    </div>
+                    <div id="history-stats" style="margin-bottom:12px;font-size:0.85rem;color:var(--muted);"></div>
+                    <div class="history-table-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                        <table class="positions-table" id="history-table">
+                            <thead>
+                                <tr><th>Time</th><th>Type</th><th>Symbol</th><th>Side/Action</th><th>Confidence</th><th>Reason</th></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Backtest Tab -->
+                <div id="tab-backtest" class="tab-content">
+                    <div class="input-area" style="margin-bottom:12px;">
+                        <input type="text" id="backtest-symbol" placeholder="Symbol" value="AAPL" style="min-width:100px;">
+                        <input type="number" id="backtest-days" placeholder="Days" value="252" style="min-width:80px;">
+                        <input type="number" id="backtest-cash" placeholder="Cash" value="10000" style="min-width:100px;">
+                        <button class="btn btn-primary" onclick="runBacktest()">Run Backtest</button>
+                    </div>
+                    <div id="backtest-loading" style="display:none;color:var(--muted);padding:16px;">Running backtest...</div>
+                    <div id="backtest-results" style="display:none;">
+                        <div class="backtest-stats" id="backtest-stats"></div>
+                        <h4 style="margin:0 0 8px;color:var(--accent-2);">Trades</h4>
+                        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+                            <table class="positions-table" id="backtest-trades">
+                                <thead><tr><th>Entry</th><th>Exit</th><th>Side</th><th>Entry $</th><th>Exit $</th><th>P&L</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="comm-panel sidebar" style="border-left:1px solid var(--border);border-right:none;">
+                <div class="card" style="margin-bottom:10px;">
+                    <h3>Agent Communication Log</h3>
+                    <div style="font-size:0.8rem;color:var(--muted);">Real-time inter-agent messages</div>
+                </div>
+                <div class="comm-log" id="comm-log"></div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Utilities ----------
+        function formatSignalValue(value) {
+            if (typeof value === 'number') {
+                if (Math.abs(value) >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                return value.toFixed(2);
+            }
+            return value;
+        }
+        function formatSignalKey(key) {
+            return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        }
+        function formatMoney(v) {
+            if (v === undefined || v === null) return '$0.00';
+            return '$' + parseFloat(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        // ---------- Tabs ----------
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('tab-' + name).classList.add('active');
+        }
+
+        // ---------- Chat ----------
+        function renderSignals(signals, container) {
+            if (!signals || typeof signals !== 'object') return;
+            const entries = Object.entries(signals).filter(([, value]) => value !== null && value !== undefined);
+            if (!entries.length) return;
+            const signalCard = document.createElement('div');
+            signalCard.className = 'signal-card';
+            signalCard.innerHTML = `
+                <div class="signal-card-title">Technical Signals</div>
+                <div class="signal-grid">
+                    ${entries.map(([key, value]) => `
+                        <div class="signal-item">
+                            <span>${formatSignalKey(key)}</span>
+                            <strong>${formatSignalValue(value)}</strong>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            container.appendChild(signalCard);
+        }
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const agentSelect = document.getElementById('agent-select');
+            const chatWindow = document.getElementById('chat-window');
+            const message = userInput.value.trim();
+            const agentId = agentSelect.value;
+            if (!message) return;
+
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'message user-message';
+            userMessageDiv.innerHTML = `<div class="message-bubble">${message}</div><div class="message-meta">You &bull; ${agentId}</div>`;
+            chatWindow.appendChild(userMessageDiv);
+            userInput.value = '';
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, agent_id: agentId }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const agentMessageDiv = document.createElement('div');
+                agentMessageDiv.className = 'message agent-message';
+                agentMessageDiv.innerHTML = `<div class="message-bubble">${data.response}</div><div class="message-meta">${agentId}</div>`;
+                if (agentId === 'technical_agent' && data.technical_signals) {
+                    renderSignals(data.technical_signals, agentMessageDiv);
+                }
+                chatWindow.appendChild(agentMessageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            })
+            .catch(() => {
+                const d = document.createElement('div');
+                d.className = 'message agent-message';
+                d.innerHTML = `<div class="message-bubble">Unable to reach the agent right now.</div><div class="message-meta">System</div>`;
+                chatWindow.appendChild(d);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+            });
+        }
+
+        document.getElementById('user-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // ---------- Multi-Agent Analysis ----------
+        function runAnalysis() {
+            const symbol = document.getElementById('analysis-symbol').value.trim().toUpperCase() || 'AAPL';
+            document.getElementById('analysis-results').style.display = 'none';
+            document.getElementById('analysis-loading').style.display = 'block';
+
+            fetch('/api/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('analysis-loading').style.display = 'none';
+                renderAnalysis(data);
+            })
+            .catch(err => {
+                document.getElementById('analysis-loading').style.display = 'none';
+                alert('Analysis failed: ' + err);
+            });
+        }
+
+        function renderAnalysis(data) {
+            const analyses = data.analyses || {};
+            const exec = analyses.execution || {};
+            const action = exec.action || 'hold';
+            const confidence = exec.confidence || 0;
+
+            document.getElementById('analysis-results').style.display = 'block';
+            const actionBadge = document.getElementById('analysis-action');
+            actionBadge.textContent = action.toUpperCase();
+            actionBadge.className = 'badge badge-' + action;
+            document.getElementById('analysis-confidence').textContent = `Confidence: ${(confidence * 100).toFixed(0)}%`;
+
+            const grid = document.getElementById('analysis-grid');
+            grid.innerHTML = '';
+
+            const tech = analyses.technical || {};
+            const techSignals = tech.signals || {};
+            grid.innerHTML += makeCard('Technical Agent', `
+                <div>RSI(14): ${fmt(techSignals.rsi_14)}</div>
+                <div>MACD: ${fmt(techSignals.macd)}</div>
+                <div>EMA20: ${fmt(techSignals.ema_20)}</div>
+                <div>Volume Trend: ${techSignals.volume_trend || 'neutral'}</div>
+            `);
+
+            const fund = analyses.fundamental || {};
+            const co = fund.data?.company || {};
+            grid.innerHTML += makeCard('Fundamental Agent', `
+                <div>PE Ratio: ${fmt(co.pe_ratio)}</div>
+                <div>EPS: ${fmt(co.eps)}</div>
+                <div>Market Cap: ${co.market_cap ? '$' + (co.market_cap).toLocaleString() + 'M' : 'N/A'}</div>
+                <div>Beta: ${fmt(co.beta)}</div>
+            `);
+
+            const news = analyses.news || {};
+            grid.innerHTML += makeCard('News Agent', `
+                <div>Sentiment: <span class="badge badge-${news.sentiment === 'positive' ? 'buy' : news.sentiment === 'negative' ? 'sell' : 'hold'}">${news.sentiment || 'neutral'}</span></div>
+                <div>Articles: ${(news.articles || []).length}</div>
+            `);
+
+            const risk = analyses.risk || {};
+            const checks = risk.checks || {};
+            grid.innerHTML += makeCard('Risk Agent', `
+                <div>Level: <span class="badge badge-${risk.risk_level || 'medium'}">${(risk.risk_level || 'medium').toUpperCase()}</span></div>
+                <div>ATR%: ${fmt(checks.atr_percent)}</div>
+                <div>${checks.rsi_warning || ''}</div>
+            `);
+
+            const port = analyses.portfolio || {};
+            const pos = port.position;
+            grid.innerHTML += makeCard('Portfolio Agent', `
+                <div>Position: ${pos ? pos.qty + ' shares @ $' + parseFloat(pos.avg_entry_price).toFixed(2) : 'None'}</div>
+                <div>Unrealized P&L: ${pos ? '$' + parseFloat(pos.unrealized_pl).toFixed(2) : 'N/A'}</div>
+            `);
+
+            grid.innerHTML += makeCard('Execution Agent', `
+                <div>Decision: <strong>${action.toUpperCase()}</strong></div>
+                <div>Reason: ${exec.reason || 'N/A'}</div>
+                <div>Raw Score: ${fmt(exec.raw_score)}</div>
+                <div class="trade-controls">
+                    <button class="btn btn-success btn-small" onclick="execTrade('${data.symbol}', 'buy')">Buy</button>
+                    <button class="btn btn-danger btn-small" onclick="execTrade('${data.symbol}', 'sell')">Sell</button>
+                </div>
+            `);
+        }
+
+        function makeCard(title, body) {
+            return `<div class="analysis-card"><h4>${title}</h4>${body}</div>`;
+        }
+        function fmt(v) {
+            if (v === undefined || v === null) return 'N/A';
+            if (typeof v === 'number') return v.toFixed(2);
+            return v;
+        }
+
+        function execTrade(symbol, side) {
+            const qty = prompt(`How many shares to ${side} for ${symbol}?`, "1");
+            if (!qty) return;
+            fetch('/api/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol, side, qty: parseFloat(qty) }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.status === 'submitted' ? `Order submitted! ID: ${data.order_id}` : `Error: ${data.error}`);
+                refreshAccount();
+            })
+            .catch(e => alert('Error: ' + e));
+        }
+
+        // ---------- Agent Communication Log (Polling) ----------
+        let commIndex = 0;
+        function pollMessages() {
+            fetch(`/api/messages?since=${commIndex}`)
+            .then(r => r.json())
+            .then(data => {
+                const log = document.getElementById('comm-log');
+                data.messages.forEach(m => {
+                    const entry = document.createElement('div');
+                    const fromClass = 'from-' + m.from.replace(/_/g, '-').replace(/[^a-z0-9-]/g, '');
+                    entry.className = `comm-entry ${fromClass}`;
+                    entry.innerHTML = `
+                        <div class="comm-header">
+                            <span class="comm-from">${m.from} &rarr; ${m.to}</span>
+                            <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <div class="comm-msg">${m.message}</div>
+                    `;
+                    log.appendChild(entry);
+                });
+                if (data.messages.length > 0) {
+                    log.scrollTop = log.scrollHeight;
+                }
+                commIndex = data.next_index;
+            })
+            .catch(() => {})
+            .finally(() => setTimeout(pollMessages, 2000));
+        }
+        pollMessages();
+
+        // ---------- Account / Positions ----------
+        function refreshAccount() {
+            fetch('/api/account')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('acc-cash').textContent = formatMoney(data.cash);
+                document.getElementById('acc-portfolio').textContent = formatMoney(data.portfolio_value);
+                document.getElementById('acc-bp').textContent = formatMoney(data.buying_power);
+                document.getElementById('acc-equity').textContent = formatMoney(data.equity);
+            })
+            .catch(() => {});
+
+            fetch('/api/positions')
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('positions-container');
+                const positions = data.all_positions || [];
+                if (!positions.length) {
+                    container.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">No open positions</div>';
+                    return;
+                }
+                let html = '<table class="positions-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Value</th><th>P&L</th></tr></thead><tbody>';
+                positions.forEach(p => {
+                    const pl = parseFloat(p.unrealized_pl || 0);
+                    const color = pl >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
+                    html += `<tr>
+                        <td><strong>${p.symbol}</strong></td>
+                        <td>${p.qty}</td>
+                        <td>${formatMoney(p.market_value)}</td>
+                        <td style="${color}">${pl >= 0 ? '+' : ''}${formatMoney(pl)}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            })
+            .catch(() => {});
+        }
+        refreshAccount();
+        setInterval(refreshAccount, 30000);
+
+        // ---------- Trade History ----------
+        function loadHistory() {
+            fetch('/api/history?limit=50')
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.querySelector('#history-table tbody');
+                tbody.innerHTML = '';
+                if (!data.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">No history yet</td></tr>';
+                    return;
+                }
+                data.forEach(h => {
+                    const tr = document.createElement('tr');
+                    const time = new Date(h.recorded_at).toLocaleString();
+                    const type = h.type || 'unknown';
+                    const symbol = h.symbol || '-';
+                    const side = h.side || h.action || '-';
+                    const conf = h.confidence !== undefined ? (h.confidence * 100).toFixed(0) + '%' : '-';
+                    const reason = (h.reason || '').substring(0, 60);
+                    const typeBadge = type === 'order' ? '<span class="badge badge-buy">ORDER</span>' : '<span class="badge badge-hold">ANALYSIS</span>';
+                    tr.innerHTML = `<td>${time}</td><td>${typeBadge}</td><td><strong>${symbol}</strong></td><td>${side.toUpperCase()}</td><td>${conf}</td><td>${reason}</td>`;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(() => {});
+
+            fetch('/api/history/stats')
+            .then(r => r.json())
+            .then(stats => {
+                document.getElementById('history-stats').innerHTML = `
+                    Total orders: <strong>${stats.total_orders || 0}</strong> &bull;
+                    Buy orders: <strong>${stats.buy_orders || 0}</strong> &bull;
+                    Sell orders: <strong>${stats.sell_orders || 0}</strong> &bull;
+                    Total analyses: <strong>${stats.total_analyses || 0}</strong>
+                `;
+            })
+            .catch(() => {});
+        }
+
+        document.querySelector('.tab[onclick="switchTab(\'history\')"]').addEventListener('click', loadHistory);
+
+        // ---------- Screener ----------
+        function runScreener() {
+            const container = document.getElementById('screener-results');
+            container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">Scanning...</div>';
+            fetch('/api/screen', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ top_n: 8 }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                const candidates = data.candidates || [];
+                if (!candidates.length) {
+                    container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">No candidates found.</div>';
+                    return;
+                }
+                let html = '<div class="screener-grid">';
+                candidates.forEach(c => {
+                    html += `
+                        <div class="screener-card">
+                            <div class="sym">${c.symbol}</div>
+                            <div class="score">Score: ${c.score.toFixed(1)} | $${c.price?.toFixed(2) || '?'}</div>
+                            <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">${c.change_percent?.toFixed(1) || 0}% | RSI ${c.rsi?.toFixed(0) || '?'}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">Screener failed.</div>';
+            });
+        }
+
+        // ---------- Backtest ----------
+        function runBacktest() {
+            const symbol = document.getElementById('backtest-symbol').value.trim().toUpperCase() || 'AAPL';
+            const days = parseInt(document.getElementById('backtest-days').value) || 252;
+            const cash = parseFloat(document.getElementById('backtest-cash').value) || 10000;
+
+            document.getElementById('backtest-results').style.display = 'none';
+            document.getElementById('backtest-loading').style.display = 'block';
+
+            fetch('/api/backtest', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol, days, initial_cash: cash }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('backtest-loading').style.display = 'none';
+                if (data.status === 'error') {
+                    alert('Backtest error: ' + data.error);
+                    return;
+                }
+                renderBacktest(data);
+            })
+            .catch(err => {
+                document.getElementById('backtest-loading').style.display = 'none';
+                alert('Backtest failed: ' + err);
+            });
+        }
+
+        function renderBacktest(data) {
+            document.getElementById('backtest-results').style.display = 'block';
+
+            const stats = document.getElementById('backtest-stats');
+            const totalColor = data.total_return_pct >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
+            stats.innerHTML = `
+                <div class="backtest-stat"><div class="label">Total Return</div><div class="value" style="${totalColor}">${data.total_return_pct?.toFixed(1) || 0}%</div></div>
+                <div class="backtest-stat"><div class="label">Total P&L</div><div class="value">$${data.total_pnl?.toLocaleString() || 0}</div></div>
+                <div class="backtest-stat"><div class="label">Trades</div><div class="value">${data.total_trades || 0}</div></div>
+                <div class="backtest-stat"><div class="label">Win Rate</div><div class="value">${data.win_rate || 0}%</div></div>
+                <div class="backtest-stat"><div class="label">Sharpe</div><div class="value">${data.sharpe_ratio || 0}</div></div>
+                <div class="backtest-stat"><div class="label">Max DD</div><div class="value" style="color:#f87171;">${data.max_drawdown_pct || 0}%</div></div>
+                <div class="backtest-stat"><div class="label">Profit Factor</div><div class="value">${data.profit_factor || 0}</div></div>
+                <div class="backtest-stat"><div class="label">Avg Trade</div><div class="value">$${data.avg_trade_pnl || 0}</div></div>
+            `;
+
+            const tbody = document.querySelector('#backtest-trades tbody');
+            tbody.innerHTML = '';
+            const trades = data.trades || [];
+            if (!trades.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">No trades</td></tr>';
+                return;
+            }
+            trades.forEach(t => {
+                const plColor = t.pnl >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${t.entry_date}</td>
+                    <td>${t.exit_date || '-'}</td>
+                    <td>${t.side.toUpperCase()}</td>
+                    <td>$${t.entry_price}</td>
+                    <td>$${t.exit_price}</td>
+                    <td style="${plColor}">$${t.pnl} (${t.pnl_pct}%)</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ---------- Autonomous ----------
+        function startAutonomous() {
+            const symbols = prompt('Symbols to watch (comma-separated):', 'AAPL,TSLA,GOOGL');
+            if (!symbols) return;
+            fetch('/api/autonomous/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbols: symbols.split(',').map(s => s.trim().toUpperCase()), interval_seconds: 300 }),
+            })
+            .then(r => r.json())
+            .then(() => {
+                document.getElementById('autonomous-status').textContent = 'Running';
+                document.getElementById('status-pill').textContent = 'Autonomous Mode';
+            })
+            .catch(() => alert('Failed to start'));
+        }
+        function stopAutonomous() {
+            fetch('/api/autonomous/stop', { method: 'POST' })
+            .then(() => {
+                document.getElementById('autonomous-status').textContent = 'Stopped';
+                document.getElementById('status-pill').textContent = 'Paper Trading Live';
+            })
+            .catch(() => alert('Failed to stop'));
+        }
+    </script>
+</body>
+</html>
