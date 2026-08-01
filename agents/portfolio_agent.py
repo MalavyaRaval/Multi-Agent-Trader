@@ -13,8 +13,6 @@ from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 
 load_dotenv()
-ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
-ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 
 class PortfolioAgent:
@@ -22,11 +20,14 @@ class PortfolioAgent:
 
     def __init__(self) -> None:
         self._client: Optional[TradingClient] = None
-        if ALPACA_API_KEY and ALPACA_SECRET_KEY:
-            try:
-                self._client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
-            except Exception:
-                pass
+        api_key = os.getenv("ALPACA_API_KEY")
+        secret_key = os.getenv("ALPACA_SECRET_KEY")
+        if not api_key or not secret_key:
+            return
+        try:
+            self._client = TradingClient(api_key, secret_key, paper=True)
+        except Exception:
+            self._client = None
 
     def analyze(self, symbol: str) -> dict:
         symbol = symbol.upper()
@@ -75,6 +76,8 @@ class PortfolioAgent:
 
         except Exception as e:
             result["status"] = f"portfolio check error: {e}"
+            result["position"] = None
+            result["account"] = {}
 
         return result
 

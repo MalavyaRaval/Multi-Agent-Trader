@@ -28,7 +28,6 @@ from agents.risk_agent import RiskAgent
 from agents.execution_agent import ExecutionAgent
 from agents.portfolio_agent import PortfolioAgent
 from indicators.multiframe import analyze_multiframe
-from agents.portfolio_agent import PortfolioAgent
 
 load_dotenv()
 
@@ -266,11 +265,6 @@ class Orchestrator:
         result["messages"] = self.bus.get_messages()
         self._last_analysis = result
         return result
-
-    # ------------------------------------------------------------------
-    # Autonomous loop
-    # ------------------------------------------------------------------
-        return self._last_analysis
 
     # ------------------------------------------------------------------
     # Autonomous loop

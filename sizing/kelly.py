@@ -25,7 +25,17 @@ def kelly_fraction(win_rate: float, avg_win: float, avg_loss: float) -> float:
     Returns:
         Kelly fraction (can be negative, zero, or > 1.0)
     """
-    if avg_loss <= 0 or win_rate <= 0 or win_rate >= 1:
+    if avg_loss <= 0:
+        return 0.0
+
+    try:
+        win_rate = float(win_rate)
+        avg_win = float(avg_win)
+        avg_loss = float(avg_loss)
+    except Exception:
+        return 0.0
+
+    if win_rate <= 0 or win_rate >= 1:
         return 0.0
     
     # b = average win / average loss (the odds)

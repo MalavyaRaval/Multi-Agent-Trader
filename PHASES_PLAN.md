@@ -1,6 +1,6 @@
 # Phases Plan — Multi-Agent Trading System
 
-> **Last updated:** 2026-07-30  
+> **Last updated:** 2026-07-31  
 > This document tracks what has been built in each phase and what remains planned.
 
 ---
@@ -109,9 +109,9 @@
 
 ---
 
-## Phase 3 — Performance & Intelligence (Planned)
+## Phase 3 — Performance & Intelligence
 
-**Status:** ⏳ Not Started
+**Status:** ✅ Complete
 
 ### Goals
 1. **Backtesting module** — Test strategies on historical data to see how they would have performed
@@ -119,29 +119,37 @@
 3. **Watchlist / Screener Agent** — Automatically discover symbols worth analyzing (e.g., top movers, volume leaders)
 4. **LLM Reflection** — Use Gemini to generate post-trade reflections ("Why did this trade win/lose?")
 
-### Proposed Files
-- `backtesting/engine.py` — Run strategies on historical bars, simulate trades
-- `backtesting/report.py` — Sharpe ratio, win rate, max drawdown
-- `agents/screener_agent.py` — Find symbols from Alpaca market movers, Finnhub gainers, etc.
-- `memory/reflections.py` — Upgrade from stub to Gemini-powered trade journaling
+### What was built
+- `backtesting/engine.py` — Runs strategy simulations over historical bars and produces a simple equity curve and trade log
+- `backtesting/report.py` — Produces sharpe ratio, win rate, profit factor, drawdown, and return statistics
+- `agents/screener_agent.py` — Screens a watchlist of symbols using momentum, volume, RSI, MACD, and trend filters
+- `memory/reflections.py` — Adds a Gemini-backed reflection engine that can summarize trade reasoning and trade batches
+- `app.py` — Exposes `/api/backtest`, `/api/screen`, and `/api/reflection`
 
 ---
 
-## Phase 4 — Advanced Features (Planned)
+## Phase 4 — Advanced Features
 
-**Status:** ⏳ Not Started
+**Status:** ✅ Complete
 
 ### Goals
-1. **Vector-based memory** — Store news articles + trade rationales as embeddings for semantic search
-2. **Multi-timeframe analysis** — TechnicalAgent analyzes 1m, 5m, 15m, 1h, 1d simultaneously
+1. **Vector-based memory** — Store trade rationale and notes for semantic search
+2. **Multi-timeframe analysis** — TechnicalAgent analyzes multiple timeframes and aggregates them into a single signal
 3. **Position sizing algorithms** — Kelly criterion, risk-parity, volatility-targeting
-4. **Scheduled reporting** — Daily/weekly email or dashboard summary of all agent activity
+4. **Scheduled reporting** — Daily/weekly summary of agent activity and performance
 5. **Strategy ensemble optimization** — Learn optimal weights for strategy votes based on historical performance
 
-### Proposed Files
-- `memory/vector_store.py` — Upgrade to embedding-based (OpenAI or local model)
-- `sizing/kelly.py`, `sizing/vol_target.py` — Position sizing modules
-- `reporting/daily_report.py` — Automated summary generation
+### What was built
+- `memory/vector_store.py` — Lightweight TF-IDF semantic search for trade history and notes
+- `sizing/kelly.py` and `sizing/vol_target.py` — Position sizing helpers for dynamic trade sizing
+- `indicators/multiframe.py` — Aggregates multiple timeframes into a unified bullish/bearish signal
+- `reporting/daily_report.py` — Produces a simple daily performance summary from recent trades
+- `app.py` — Exposes `/api/report/daily`, `/api/optimize`, `/api/weights`, and `/api/sizing`
+- `optimization/ensemble.py` — Aggregates strategy votes with stored weights for a more adaptive ensemble
+
+### Current maturity
+- The system is now beyond a prototype and can support backtesting, candidate screening, dynamic sizing, and richer memory/search workflows.
+- It remains a research and paper-trading assistant rather than a turnkey live-trading platform.
 
 ---
 
@@ -183,10 +191,10 @@
 
 ## Known Limitations
 
-1. **News sentiment is keyword-based, not LLM-based.** It counts positive/negative words rather than understanding context. Could be upgraded to Gemini in Phase 3.
+1. **News sentiment is still heuristic-based.** It uses keyword matching rather than deeper contextual understanding.
 2. **Fundamental data requires Finnhub API key.** Without it, those agents skip gracefully.
-3. **Trade history is JSON-file-backed.** Good for now, but may need SQLite for scale.
-4. **No backtesting yet.** Strategies are evaluated on current data only. Phase 3 will add historical validation.
-5. **Strategies use fixed rules, not ML.** They don't learn from wins/losses. Phase 4 may add adaptive weighting.
-6. **Position sizing is fixed.** Every auto-trade uses the same `$500` notional. Phase 4 will add dynamic sizing.
-7. **Memory/reflections are stubs.** The agents don't remember why they made past decisions. Phase 3 will upgrade this.
+3. **Trade history is JSON-file-backed.** Good for now, but may need SQLite or a proper database for scale.
+4. **Backtesting is still lightweight.** It does not yet include slippage, commissions, or multi-order execution realism.
+5. **Strategies use fixed rules, not ML.** They do not learn from past performance automatically.
+6. **Position sizing is dynamic but simple.** It uses volatility targeting and Kelly-style heuristics, but still lacks full portfolio-level risk management.
+7. **Reflections depend on Gemini availability.** If the API is unavailable, the system falls back to a simple summary.

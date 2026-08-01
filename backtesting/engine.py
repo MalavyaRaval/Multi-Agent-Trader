@@ -89,9 +89,22 @@ class BacktestEngine:
 
         # Fetch historical data
         snapshot = self.market.snapshot(symbol, timeframe="1d", days=days)
-        bars = snapshot.bars
-        if bars.empty or len(bars) < 30:
-            raise ValueError(f"Insufficient historical data for {symbol}")
+        bars = getattr(snapshot, "bars", None)
+        if bars is None or getattr(bars, "empty", True) or len(bars) < 30:
+            return BacktestResult(
+                symbol=symbol,
+                start_date="n/a",
+                end_date="n/a",
+                initial_cash=self.initial_cash,
+                final_cash=self.initial_cash,
+                total_trades=0,
+                winning_trades=0,
+                losing_trades=0,
+                total_pnl=0.0,
+                max_drawdown_pct=0.0,
+                trades=[],
+                equity_curve=[],
+            )
 
         # Build daily signals by walking through history
         # We simulate that we only know data up to day N when making day N decision

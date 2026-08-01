@@ -46,9 +46,6 @@ load_dotenv()
 ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
 ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
-if not ALPACA_API_KEY or not ALPACA_SECRET_KEY:
-    raise RuntimeError("Missing Alpaca API keys.")
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -116,7 +113,12 @@ class MarketAgent:
     """Collects market data and prepares structured snapshots for downstream agents."""
 
     def __init__(self, cache_ttl_seconds: int = 60) -> None:
-        self.client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+        self.client = None
+        if ALPACA_API_KEY and ALPACA_SECRET_KEY:
+            try:
+                self.client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+            except Exception as exc:
+                logger.warning("Could not initialize Alpaca client: %s", exc)
         self.cache_ttl_seconds = cache_ttl_seconds
         self._cache: Dict[tuple[str, str, int], Dict[str, Any]] = {}
         logger.info("Market Agent initialized.")
@@ -314,6 +316,13 @@ class MarketAgent:
     def snapshot(self, symbol: str, timeframe: str | TimeFrame = "1d", days: int = 200) -> MarketSnapshot:
         symbol = symbol.upper()
         logger.info("Building market snapshot for %s (%s)", symbol, timeframe)
+
+        if self.client is None:
+            empty_bars = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume", "symbol"])
+            quote = MarketQuote(symbol=symbol, bid_price=0.0, ask_price=0.0, bid_size=0, ask_size=0, timestamp=datetime.utcnow())
+            trade = MarketTrade(symbol=symbol, price=0.0, size=0, timestamp=datetime.utcnow())
+            metrics = {"change_percent": None, "relative_volume": None, "spread": None}
+            return MarketSnapshot(symbol=symbol, timeframe=str(timeframe), quote=quote, trade=trade, bars=empty_bars, metrics=metrics, generated_at=datetime.utcnow())
 
         bars = self.historical_bars(symbol, timeframe=timeframe, days=days)
         quote = self.latest_quote(symbol)

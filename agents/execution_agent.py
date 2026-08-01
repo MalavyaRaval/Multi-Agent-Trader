@@ -30,8 +30,6 @@ from sizing import target_volatility_size, risk_parity_size, half_kelly
 from optimization.ensemble import StrategyEnsemble
 
 load_dotenv()
-ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
-ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 # Auto-execute threshold: only trade if confidence >= this value
 AUTO_EXECUTE_CONFIDENCE = float(os.getenv("AUTO_EXECUTE_CONFIDENCE", "0.75"))
@@ -44,11 +42,13 @@ class ExecutionAgent:
 
     def __init__(self) -> None:
         self._client: Optional[TradingClient] = None
-        if ALPACA_API_KEY and ALPACA_SECRET_KEY:
+        api_key = os.getenv("ALPACA_API_KEY")
+        secret_key = os.getenv("ALPACA_SECRET_KEY")
+        if api_key and secret_key:
             try:
-                self._client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
+                self._client = TradingClient(api_key, secret_key, paper=True)
             except Exception:
-                pass
+                self._client = None
         self.history = TradeHistory()
         self.ensemble = StrategyEnsemble()
         self.strategies = [
@@ -71,6 +71,10 @@ class ExecutionAgent:
             "strategy_votes": [],
             "ensemble": {},
         }
+
+        if not ctx:
+            result["status"] = "execution analysis skipped (no context)"
+            return result
 
         # ---- Run all strategies ----
         strategy_results = []
@@ -154,14 +158,21 @@ class ExecutionAgent:
             agent_score -= 0.5
             reasons.append("Negative news sentiment")
 
-        risk_level = risk.get("risk_level", "medium")
+        risk_level = str(risk.get("risk_level", "medium")).lower()
+        risk_factor = 1.0
         if risk_level == "high":
-            agent_score *= 0.5
-            reasons.append("High risk - reducing position size")
+            risk_factor = 0.35
+            reasons.append("High risk - reducing position size and conviction")
+        elif risk_level == "medium":
+            risk_factor = 0.7
+        elif risk_level == "low":
+            risk_factor = 0.9
+
+        agent_score *= risk_factor
 
         # ---- Combine strategy + agent scores ----
         # Strategies get 40% weight, agents get 60%
-        combined_score = agent_score * 0.6 + strat_score * 1.5  # strategies already scaled 0..1
+        combined_score = (agent_score * 0.6 + strat_score * 1.5) * risk_factor  # strategies already scaled 0..1
 
         # Portfolio context
         position = port.get("position")
@@ -192,14 +203,17 @@ class ExecutionAgent:
         result["agent_score"] = round(agent_score, 2)
         result["strategy_score"] = round(strat_score, 2)
 
-        # Log analysis
-        self.history.record_analysis(
-            symbol=symbol,
-            action=result["action"],
-            confidence=result["confidence"],
-            reason=result["reason"],
-            analyses={"strategies": strategy_results, "agent_score": agent_score, "ensemble": ensemble_result},
-        )
+        # Log analysis safely
+        try:
+            self.history.record_analysis(
+                symbol=symbol,
+                action=result["action"],
+                confidence=result["confidence"],
+                reason=result["reason"],
+                analyses={"strategies": strategy_results, "agent_score": agent_score, "ensemble": ensemble_result},
+            )
+        except Exception:
+            pass
         return result
 
     def compute_position_size(

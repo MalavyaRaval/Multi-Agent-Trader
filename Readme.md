@@ -1,37 +1,63 @@
 # Paper Trading Multi-Agent Platform
 
-This project is now organized as a single, structured Python application with:
+This project is now a working multi-agent paper-trading research platform built in Python. It combines:
 
-- a web dashboard powered by Flask
-- a trading agent for paper trading
-- a market data collector agent
-- a modular folder structure for agents, data, indicators, memory, and strategies
+- a Flask-based web dashboard
+- a multi-agent orchestration layer
+- real technical, fundamental, news, risk, and portfolio analysis
+- a strategy voting system with auto-trade support
+- backtesting, screening, daily reporting, and semantic memory features
+
+It is designed for experimentation and learning rather than guaranteed profits. The system runs entirely in paper-trading mode by default, so it is safe to explore without risking real money.
+
+## What the system does
+
+At a high level, the app can:
+
+- analyze a symbol using multiple AI-style agents
+- compute technical indicators and trading signals
+- combine several strategy opinions into a single buy/sell/hold decision
+- optionally place paper trades through Alpaca
+- store every decision and order in persistent trade history
+- backtest strategies on historical data
+- screen a watchlist for promising symbols
+- generate reflections and simple daily summaries
+- search through stored trade notes and history semantically
 
 ## Project structure
 
 ```text
 .
 ├── agents/
+├── backtesting/
 ├── data/
 ├── indicators/
 ├── memory/
+├── optimization/
+├── reporting/
+├── sizing/
 ├── strategies/
 ├── templates/
 ├── app.py
 ├── config.py
 ├── main.py
 ├── market_data_agent.py
+├── orchestrator.py
 ├── requirements.txt
 ├── trading_agent.py
 └── Readme.md
 ```
 
-## What is included
+## Main modules
 
-- Trading agent: [trading_agent.py](trading_agent.py)
-- Market data agent: [market_data_agent.py](market_data_agent.py)
-- Web dashboard: [app.py](app.py) with template support in [templates](templates)
-- Modular AI trader scaffold: [main.py](main.py)
+- [app.py](app.py) — Flask app and REST API
+- [orchestrator.py](orchestrator.py) — coordinates agents and publishes inter-agent messages
+- [agents/](agents) — market, technical, fundamental, news, risk, execution, portfolio, and screener modules
+- [strategies/](strategies) — five strategy voters for momentum, trend, mean reversion, breakout, and swing
+- [backtesting/](backtesting) — historical strategy simulation and reporting
+- [memory/](memory) — trade history, reflections, and semantic memory
+- [sizing/](sizing) — Kelly and volatility-targeting position sizing helpers
+- [reporting/](reporting) — daily reporting summaries
 
 ## Setup
 
@@ -50,6 +76,8 @@ ALPACA_API_KEY=your_paper_key
 ALPACA_SECRET_KEY=your_paper_secret
 GEMINI_API_KEY=your_gemini_key
 FINNHUB_API_KEY=optional
+AUTO_EXECUTE_CONFIDENCE=0.75
+AUTO_TRADE_NOTIONAL=500
 ```
 
 ### 3. Run the dashboard
@@ -70,39 +98,45 @@ http://127.0.0.1:5000/
 python main.py
 ```
 
-## Notes
+## How it works
 
-- The trading and market data agents use Alpaca paper trading.
-- The web UI lets you communicate with the agents from the browser.
-- The modular folders are ready for future expansion into more advanced multi-agent workflows.
+1. The orchestrator starts a symbol analysis flow.
+2. Market and technical agents collect data and indicators.
+3. Fundamental, news, risk, and portfolio agents add context.
+4. Strategies vote independently.
+5. The execution agent merges the signals, calculates confidence, and may place a paper trade.
+6. Every action is logged in the trade ledger for later review.
 
-## Next steps
+## Key features
 
-You can now extend the project by:
+- Multi-agent analysis pipeline
+- Real-time communication log in the dashboard
+- Autonomous trading loop
+- Paper-trading execution via Alpaca
+- Trade history persistence
+- Backtesting and performance reporting
+- Screener for candidate symbols
+- Daily report generation
+- Lightweight semantic search over trade memory
 
-- adding more agents in [agents](agents)
-- wiring live technical/fundamental signals
-- connecting the dashboard to a richer chat history view
-- adding persistence for trades and memory
+## Important notes
 
-## Customizing
+- This is paper trading only. The project is intentionally safe by default.
+- Some features gracefully degrade if API keys are missing.
+- The strategies and agents are heuristic-based tools for research, not guaranteed profit generators.
 
-The tools live in one place near the top of `trading_agent.py` — `TOOL_IMPLS`
-and `TOOL_DECLARATIONS`. A few natural next steps if you want them:
+## Suggested next upgrades
 
-- **Limit orders**: add a `limit_price` argument and use alpaca-py's
-  `LimitOrderRequest` instead of `MarketOrderRequest` in `_place_order`.
-- **Watchlists / recurring checks**: add a `get_watchlist` tool, or wrap
-  `get_positions` in a loop that runs on a schedule.
-- **Order history**: add a tool around `trading_client.get_orders()`.
-- Edit `SYSTEM_INSTRUCTION` to change the agent's tone or add house rules
-  (e.g. "never let a single order exceed $1000").
+If you want to push this project further, the best next steps are:
+
+- add slippage and commissions to backtests
+- add daily loss and drawdown safeguards for autonomous mode
+- connect richer data sources like macro and SEC data
+- improve the UI with charts and richer trade explanations
+- replace the lightweight memory layer with a more advanced embedding-based store
 
 ## Troubleshooting
 
-- `Could not connect to Alpaca`: double check you copied the **paper** keys
-  (not live) into `.env`, with no extra spaces or quotes.
-- `Gemini API error`: check the key at aistudio.google.com/apikey is active,
-  and that you have internet access.
-- Nothing happens after you answer `y` to a confirmation: check your terminal
-  didn't lose focus — it's a normal blocking `input()` prompt.
+- `Could not connect to Alpaca`: double check you copied the **paper** keys into `.env`.
+- `Gemini API error`: verify the Gemini API key is active and the environment has internet access.
+- `No data returned`: market data may be unavailable for some symbols or timeframes, and the system will fall back gracefully.

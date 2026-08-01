@@ -134,6 +134,8 @@ class VectorStore:
 
         Returns documents ranked by relevance to the query.
         """
+        if not query or not str(query).strip():
+            return []
         if not self.documents:
             return []
 

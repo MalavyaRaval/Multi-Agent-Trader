@@ -41,6 +41,13 @@ def target_volatility_size(
     """
     if price <= 0 or atr <= 0 or equity <= 0:
         return None
+
+    try:
+        equity = float(equity)
+        price = float(price)
+        atr = float(atr)
+    except Exception:
+        return None
     
     # Position volatility = position_value * (atr / price)
     # We want: position_volatility / equity = target_volatility_pct

@@ -1,32 +1,35 @@
 # Project Guide — Multi-Agent Paper Trading System
 
-> **Last updated:** 2026-07-30  
-> **Project root:** `C:\Users\malav\OneDrive_San Francisco State University\Desktop\claude alpaca`
+> **Last updated:** 2026-07-31  
+> **Project root:** C:\Users\malav\OneDrive_San Francisco State University\Desktop\claude alpaca
 
 ---
 
 ## Table of Contents
 
 1. [High-Level Architecture](#high-level-architecture)
-2. [Folder-by-Folder Breakdown](#folder-by-folder-breakdown)
-3. [File-by-File Reference](#file-by-file-reference)
-4. [Agent Interactions (The Pipeline)](#agent-interactions-the-pipeline)
-5. [Data Flow Diagram](#data-flow-diagram)
-6. [API Endpoints](#api-endpoints)
-7. [Environment Variables](#environment-variables)
-8. [How to Run](#how-to-run)
+2. [How the System Works](#how-the-system-works)
+3. [Folder-by-Folder Breakdown](#folder-by-folder-breakdown)
+4. [File-by-File Reference](#file-by-file-reference)
+5. [Agent Interactions (The Pipeline)](#agent-interactions-the-pipeline)
+6. [Data Flow Diagram](#data-flow-diagram)
+7. [API Endpoints](#api-endpoints)
+8. [Environment Variables](#environment-variables)
+9. [How to Run](#how-to-run)
+10. [What to Improve Next](#what-to-improve-next)
 
 ---
 
 ## High-Level Architecture
 
-This is a **multi-agent AI trading platform** that uses **Alpaca paper trading** (simulated money, zero real risk). It consists of:
+This is a **multi-agent AI trading platform** that uses **Alpaca paper trading** (simulated money, zero real risk). It is designed to act as both a research assistant and a paper-trading workflow engine. The current system includes:
 
-- **7 specialized agents** that each analyze a different dimension of a stock
-- **5 trading strategies** that vote on buy/sell/hold decisions
-- **1 orchestrator** that coordinates the agents, logs their communication, and can auto-execute trades
-- **1 web dashboard** where you chat with agents, trigger analyses, and watch agents communicate in real-time
-- **1 standalone trading agent** for direct natural-language buy/sell commands
+- **specialized agents** that analyze market data, technical signals, fundamentals, news, risk, portfolio state, and execution decisions
+- **5 trading strategies** that cast buy/sell/hold votes based on different market hypotheses
+- **an orchestrator** that coordinates the agents, logs their communication, and can auto-execute trades when confidence is high
+- **a Flask dashboard** where you can chat with agents, trigger analyses, run backtests, screen symbols, and inspect recent trades
+- **a lightweight memory layer** for trade history, reflections, and semantic search
+- **advanced sizing and reporting features** for a more realistic portfolio workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -56,6 +59,22 @@ Data     EMA,etc.)   Beta)                         + Strategies
 
 ---
 
+## How the System Works
+
+The project follows a simple but extensible flow:
+
+1. The user or the orchestrator asks the system to analyze a symbol.
+2. The market and technical modules gather price and indicator data.
+3. The fundamental, news, risk, and portfolio agents add context.
+4. Several trading strategies independently evaluate the setup and issue votes.
+5. The execution agent combines these signals into a single decision with a confidence score.
+6. If the confidence is high enough and the workflow is in autonomous mode, the system can place a paper order through Alpaca.
+7. Every decision and order is stored in the trade history and can be inspected later through the dashboard or API.
+
+This means the system is not just a single chatbot. It is a small research pipeline that turns market data and agent reasoning into trade decisions and records the results for review.
+
+---
+
 ## Folder-by-Folder Breakdown
 
 ### `agents/` — The 7 Analysis Agents
@@ -68,7 +87,7 @@ Contains everything that talks to external APIs (Alpaca, Finnhub) plus caching, 
 Pure math functions that operate on pandas Series or lists of prices. Used exclusively by the TechnicalAgent.
 
 ### `memory/` — Persistence Layer
-JSON-backed storage for trade history. Also has placeholder reflection and vector store modules for future AI memory features.
+JSON-backed storage for trade history, plus reflection and semantic memory layers that are already functional in a lightweight form.
 
 ### `strategies/` — Trading Strategies
 Each strategy evaluates the full analysis context and casts a "vote" (buy/sell/hold with confidence). Used by the ExecutionAgent.
@@ -306,11 +325,13 @@ Each file also exports a `calculate_*` variant for backward compatibility with l
   - `get_stats()` — counts of orders, buys, sells, analyses
 - **Thread-safe:** Uses `threading.Lock()` for concurrent access.
 
-#### `memory/reflections.py` — Placeholder
-- Simple in-memory note taker. Future: LLM-generated post-trade reflections.
+#### `memory/reflections.py` — **Trade Reflection Layer**
+- Uses the Gemini API to generate concise post-trade feedback for a single trade or a batch of trades.
+- Useful for journaling and improving decision quality over time.
 
-#### `memory/vector_store.py` — Placeholder
-- Simple keyword search over documents. Future: embedding-based semantic search for news/articles.
+#### `memory/vector_store.py` — **Semantic Memory Layer**
+- Uses a lightweight TF-IDF-based vector store to search previous trade notes and trade-history text.
+- Good for finding patterns such as "buying after momentum breakout" or "high-volatility sell setups".
 
 ---
 
@@ -430,6 +451,14 @@ Every step publishes messages to the `MessageBus`, which the dashboard polls eve
 | `/api/execute` | POST | Manual trade (`symbol`, `side`, `qty`\|`notional`) |
 | `/api/history` | GET | History entries (`limit`) |
 | `/api/history/stats` | GET | History stats |
+| `/api/backtest` | POST | Run a historical backtest (`symbol`, `days`, `initial_cash`) |
+| `/api/screen` | POST | Screen a watchlist for candidates |
+| `/api/reflection` | POST | Generate trade reflections from recent trades |
+| `/api/report/daily` | GET | Get a daily summary report from recent trades |
+| `/api/optimize` | POST | Optimize ensemble weights from backtest results |
+| `/api/weights` | GET | View current ensemble weights |
+| `/api/sizing` | POST | Estimate position size using volatility-targeting / Kelly / risk parity |
+| `/api/search` | POST | Semantic search over trade history and stored text |
 
 ---
 
@@ -478,3 +507,19 @@ python main.py
 - **Finnhub API key is optional.** Without it, FundamentalAgent and NewsAgent will gracefully skip their data sources.
 - **Auto-trading is opt-in.** You must click "Start Loop" in the dashboard or call the API to enable autonomous trades.
 - **Strategies do not guarantee profits.** They are rule-based heuristics, not financial advice.
+
+---
+
+## What to Improve Next
+
+The project is now much more complete than the original scaffold, but there are still high-value upgrades to consider:
+
+1. **Better backtesting realism** — add slippage, commissions, partial fills, and more realistic entry/exit logic.
+2. **Stronger memory** — replace the TF-IDF store with embeddings or a small local vector index if you want deeper semantic recall.
+3. **Safer autonomous trading** — introduce daily loss caps, max drawdown caps, and a kill-switch.
+4. **More data inputs** — add macro data, SEC filings, and alternative data sources.
+5. **Model-based decisioning** — move from fixed heuristics to learned or LLM-assisted scoring.
+6. **UI polish** — add charts, daily reports, and better trade explanations in the dashboard.
+7. **Testing coverage** — expand from smoke tests to behavior-focused backtest and orchestration tests.
+
+These improvements would push the system from a strong research prototype into a more robust trading copilot.

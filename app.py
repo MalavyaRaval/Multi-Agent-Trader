@@ -16,7 +16,9 @@ from backtesting.report import generate_report
 from indicators.multiframe import analyze_multiframe
 from optimization.ensemble import StrategyEnsemble
 from memory.vector_store import VectorStore
+from memory.reflections import ReflectionEngine
 from sizing import target_volatility_size, risk_parity_size, half_kelly
+from reporting.daily_report import build_daily_report
 
 app = Flask(__name__)
 technical_agent = TechnicalAgent()
@@ -26,6 +28,7 @@ trade_history = TradeHistory()
 screener = ScreenerAgent()
 ensemble = StrategyEnsemble()
 vector_store = VectorStore()
+reflection_engine = ReflectionEngine()
 
 # Keep track of previous interaction IDs for each agent
 previous_trading_agent_interaction_id = None
@@ -262,6 +265,27 @@ def api_optimize():
 def api_weights():
     """Get current ensemble strategy weights."""
     return jsonify({"weights": ensemble.get_weights()})
+
+
+@app.route("/api/reflection", methods=["POST"])
+def api_reflection():
+    """Generate a reflection summary from recent trades."""
+    trades = request.json.get("trades", []) or []
+    try:
+        result = reflection_engine.reflect_on_period(trades)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"reflection": f"Reflection failed: {e}", "patterns": []}), 500
+
+
+@app.route("/api/report/daily", methods=["GET"])
+def api_daily_report():
+    """Return a simple daily summary report from the current trade history."""
+    try:
+        report = build_daily_report(trade_history.get_all(limit=200))
+        return jsonify(report)
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e), "report_type": "daily"}), 500
 
 
 @app.route("/api/sizing", methods=["POST"])
