@@ -111,13 +111,148 @@ def api_analyze():
     return jsonify(result)
 
 
+@app.route("/api/chart_data", methods=["POST"])
+def api_chart_data():
+    """Fetch OHLC bars and indicator series for frontend Chart.js charts."""
+    data = request.json or {}
+    symbol = data.get("symbol", "AAPL").upper()
+    days = data.get("days", 90)
+    try:
+        from agents.market_agent import MarketAgent
+        import pandas as pd
+        import numpy as np
+
+        market = MarketAgent()
+        snapshot = market.snapshot(symbol, timeframe="1d", days=days)
+        bars = getattr(snapshot, "bars", None)
+        if bars is None:
+            return jsonify({"status": "error", "error": "No bar data available"}), 404
+
+        frame = technical_agent._coerce_to_frame(bars)
+        if frame.empty:
+            return jsonify({"status": "error", "error": "Empty bar data"}), 404
+
+        close = pd.to_numeric(frame.get("close", pd.Series(dtype=float)), errors="coerce")
+        high = pd.to_numeric(frame.get("high", close), errors="coerce")
+        low = pd.to_numeric(frame.get("low", close), errors="coerce")
+        open_p = pd.to_numeric(frame.get("open", close), errors="coerce")
+        volume = pd.to_numeric(frame.get("volume", pd.Series(0, index=close.index)), errors="coerce")
+
+        # Moving Averages
+        ema20 = close.ewm(span=20, adjust=False).mean()
+        ema50 = close.ewm(span=50, adjust=False).mean()
+        
+        # MACD
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+        macd_line = ema12 - ema26
+        macd_signal = macd_line.ewm(span=9, adjust=False).mean()
+        macd_hist = macd_line - macd_signal
+
+        # Bollinger Bands
+        sma20 = close.rolling(20).mean()
+        std20 = close.rolling(20).std()
+        bb_upper = sma20 + (std20 * 2)
+        bb_lower = sma20 - (std20 * 2)
+
+        # RSI (Wilder / EMA style)
+        delta = close.diff()
+        gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
+        loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
+        rs = gain / (loss.replace(0, 1e-9))
+        rsi_series = 100 - (100 / (1 + rs))
+
+        # Dates
+        dates = []
+        if "timestamp" in frame.columns:
+            dates = [str(ts)[:10] for ts in frame["timestamp"]]
+        elif isinstance(frame.index, pd.DatetimeIndex):
+            dates = [str(ts)[:10] for ts in frame.index]
+        else:
+            dates = [f"Day {i+1}" for i in range(len(frame))]
+
+        def clean_series(s):
+            return [None if (pd.isna(x) or np.isinf(x)) else round(float(x), 2) for x in s]
+
+        return jsonify({
+            "status": "ok",
+            "symbol": symbol,
+            "dates": dates,
+            "close": clean_series(close),
+            "open": clean_series(open_p),
+            "high": clean_series(high),
+            "low": clean_series(low),
+            "volume": clean_series(volume),
+            "rsi": clean_series(rsi_series),
+            "ema20": clean_series(ema20),
+            "ema50": clean_series(ema50),
+            "macd": clean_series(macd_line),
+            "macd_signal": clean_series(macd_signal),
+            "macd_hist": clean_series(macd_hist),
+            "bollinger_upper": clean_series(bb_upper),
+            "bollinger_lower": clean_series(bb_lower),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/diagnostics", methods=["GET"])
+def api_diagnostics():
+    """Return health & connectivity status for all APIs."""
+    import os
+    alpaca_key = bool(os.getenv("ALPACA_API_KEY"))
+    alpaca_secret = bool(os.getenv("ALPACA_SECRET_KEY"))
+    finnhub_key = bool(os.getenv("FINNHUB_API_KEY"))
+    gemini_key = bool(os.getenv("GEMINI_API_KEY"))
+
+    alpaca_status = "ok" if (alpaca_key and alpaca_secret) else "missing_keys"
+    finnhub_status = "ok" if finnhub_key else "missing_key"
+    gemini_status = "ok" if gemini_key else "missing_key"
+
+    return jsonify({
+        "status": "ok",
+        "services": {
+            "alpaca": {
+                "name": "Alpaca Market & Trading API",
+                "status": alpaca_status,
+                "mode": "Paper Trading (Zero Risk)",
+                "keys_configured": alpaca_key and alpaca_secret,
+            },
+            "finnhub": {
+                "name": "Finnhub Fundamentals & News API",
+                "status": finnhub_status,
+                "keys_configured": finnhub_key,
+                "note": "Optional. When missing, fundamental & news agents degrade gracefully to neutral.",
+            },
+            "gemini": {
+                "name": "Google Gemini LLM Engine",
+                "status": gemini_status,
+                "keys_configured": gemini_key,
+                "model": "gemini-3.1-flash-lite",
+                "note": "Used for chat, trade reflections, and executive reasoning synthesis.",
+            },
+        }
+    })
+
+
 @app.route("/api/messages", methods=["GET"])
 def api_messages():
-    """Poll for new inter-agent messages."""
-    client_id = request.args.get("client_id", "default")
+    """Poll for new inter-agent messages with optional filtering."""
     since = request.args.get("since", type=int, default=0)
-    messages = orchestrator.get_messages(since_index=since)
+    session_id = request.args.get("session_id")
+    category = request.args.get("category")
+    symbol = request.args.get("symbol")
+    messages = orchestrator.bus.get_messages(
+        since_index=since, session_id=session_id, category=category, symbol=symbol
+    )
     return jsonify({"messages": messages, "next_index": since + len(messages)})
+
+
+@app.route("/api/sessions", methods=["GET"])
+def api_sessions():
+    """Get list of all analysis sessions recorded."""
+    sessions = orchestrator.bus.get_sessions()
+    return jsonify({"sessions": sessions})
 
 
 @app.route("/api/account", methods=["GET"])

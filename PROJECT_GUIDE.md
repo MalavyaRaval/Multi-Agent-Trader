@@ -1,6 +1,6 @@
 # Project Guide — Multi-Agent Paper Trading System
 
-> **Last updated:** 2026-07-31  
+> **Last updated:** 2026-08-11  
 > **Project root:** C:\Users\malav\OneDrive_San Francisco State University\Desktop\claude alpaca
 
 ---
@@ -11,463 +11,120 @@
 2. [How the System Works](#how-the-system-works)
 3. [Folder-by-Folder Breakdown](#folder-by-folder-breakdown)
 4. [File-by-File Reference](#file-by-file-reference)
-5. [Agent Interactions (The Pipeline)](#agent-interactions-the-pipeline)
+5. [Agent Interactions & Telemetry Pipeline](#agent-interactions--telemetry-pipeline)
 6. [Data Flow Diagram](#data-flow-diagram)
-7. [API Endpoints](#api-endpoints)
+7. [API Endpoints Reference](#api-endpoints-reference)
 8. [Environment Variables](#environment-variables)
 9. [How to Run](#how-to-run)
-10. [What to Improve Next](#what-to-improve-next)
+10. [Recent Major Improvements](#recent-major-improvements)
 
 ---
 
 ## High-Level Architecture
 
-This is a **multi-agent AI trading platform** that uses **Alpaca paper trading** (simulated money, zero real risk). It is designed to act as both a research assistant and a paper-trading workflow engine. The current system includes:
-
-- **specialized agents** that analyze market data, technical signals, fundamentals, news, risk, portfolio state, and execution decisions
-- **5 trading strategies** that cast buy/sell/hold votes based on different market hypotheses
-- **an orchestrator** that coordinates the agents, logs their communication, and can auto-execute trades when confidence is high
-- **a Flask dashboard** where you can chat with agents, trigger analyses, run backtests, screen symbols, and inspect recent trades
-- **a lightweight memory layer** for trade history, reflections, and semantic search
-- **advanced sizing and reporting features** for a more realistic portfolio workflow
+This is an advanced **multi-agent AI trading platform** powered by **Alpaca paper trading** (simulated money, zero real risk). It combines **7 specialized AI agents**, **5 trading strategies**, **Gemini LLM reasoning synthesis**, **interactive Chart.js financial charts**, and a **real-time Slack/Discord-style Inter-Agent Group Chat**.
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          WEB DASHBOARD                               │
-│  (Flask + HTML/JS — tabs: Chat, Analysis, History, Comm Log)        │
-└─────────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         ORCHESTRATOR                                 │
-│  Coordinates 7 agents → runs 5 strategies → decides → optionally    │
-│  auto-trades. Logs everything to MessageBus + TradeHistory.          │
-└─────────────────────────────────────────────────────────────────────┘
-                                │
-    ┌──────────┬──────────┬──────────┬──────────┬──────────┬──────────┐
-    ▼          ▼          ▼          ▼          ▼          ▼          ▼
-┌───────┐ ┌───────┐ ┌─────────┐ ┌──────┐ ┌───────┐ ┌─────────┐ ┌─────────┐
-│Market │ │Techni-│ │Fundamen-│ │ News │ │ Risk  │ │Execution│ │Portfolio│
-│ Agent │ │ cal   │ │  tal    │ │ Agent│ │ Agent │ │  Agent  │ │  Agent  │
-└───────┘ └───────┘ └─────────┘ └──────┘ └───────┘ └─────────┘ └─────────┘
-    │          │          │          │          │          │          │
-    ▼          ▼          ▼          ▼          ▼          ▼          ▼
-Alpaca   Indicators  Finnhub   Finnhub   Market+    Alpaca    Alpaca
-Market   (RSI,MACD,  (PE,EPS,  News API  Technical  (trades)  (positions)
-Data     EMA,etc.)   Beta)                         + Strategies
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 WEB DASHBOARD (Flask + JS)                              │
+│  Tabs: Multi-Agent Workspace │ Inter-Agent Group Chat │ Agent Chat │ Screener │          │
+│        Backtest Lab │ AI Reflections & Reports │ Vector Search │ Trade History          │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                             │
+                                             ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                     ORCHESTRATOR                                        │
+│  Coordinates 7 agents → runs 5 strategy voters → calculates score → generates reasoning  │
+│  synthesizes Gemini LLM thesis → logs to MessageBus (with session IDs & telemetry)      │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                             │
+    ┌──────────┬──────────┬──────────┬───────┴──┬──────────┬──────────┬──────────┐
+    ▼          ▼          ▼          ▼          ▼          ▼          ▼          ▼
+┌───────┐ ┌───────┐ ┌─────────┐ ┌──────┐ ┌───────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│Market │ │Techni-│ │Fundamen-│ │ News │ │ Risk  │ │Execution│ │Portfolio│ │Reasoning│
+│ Agent │ │ cal   │ │  tal    │ │ Agent│ │ Agent │ │  Agent  │ │  Agent  │ │ Engine  │
+└───────┘ └───────┘ └─────────┘ └──────┘ └───────┘ └─────────┘ └─────────┘ └─────────┘
+    │          │          │          │          │          │          │          │
+    ▼          ▼          ▼          ▼          ▼          ▼          ▼          ▼
+Alpaca   Indicators  Finnhub   Finnhub   Market+    Alpaca    Alpaca     Gemini LLM
+Market   (RSI,MACD,  (PE,EPS,  News API  Technical  (trades)  (positions) Rationale
+Data     EMA,etc.)   Beta)                         + Strategies           Synthesis
 ```
 
 ---
 
 ## How the System Works
 
-The project follows a simple but extensible flow:
-
-1. The user or the orchestrator asks the system to analyze a symbol.
-2. The market and technical modules gather price and indicator data.
-3. The fundamental, news, risk, and portfolio agents add context.
-4. Several trading strategies independently evaluate the setup and issue votes.
-5. The execution agent combines these signals into a single decision with a confidence score.
-6. If the confidence is high enough and the workflow is in autonomous mode, the system can place a paper order through Alpaca.
-7. Every decision and order is stored in the trade history and can be inspected later through the dashboard or API.
-
-This means the system is not just a single chatbot. It is a small research pipeline that turns market data and agent reasoning into trade decisions and records the results for review.
+1. **Analysis Trigger:** The user requests an analysis or the autonomous trading loop runs (every 180 seconds).
+2. **Session Telemetry:** The Orchestrator assigns a unique `session_id` and emits session start events to the `MessageBus`.
+3. **Data & Technical Collection:** The `MarketAgent` fetches OHLCV price bars and quotes from Alpaca. `TechnicalAgent` computes RSI, MACD, EMA20/50, Bollinger Bands, ATR, and volume trends across timeframes.
+4. **Fundamental & News Context:** `FundamentalAgent` and `NewsAgent` query Finnhub profile/news APIs. If API keys are missing, they emit diagnostic warnings and degrade gracefully to neutral.
+5. **Risk & Portfolio Evaluation:** `RiskAgent` computes ATR volatility % and RSI extremes. `PortfolioAgent` checks current position sizing and unrealized P&L to avoid churn.
+6. **Strategy Ensemble Voting:** 5 independent strategies (`Momentum`, `TrendFollowing`, `MeanReversion`, `Breakout`, `Swing`) evaluate the setup and issue votes (BUY/SELL/HOLD + confidence).
+7. **Weighted Execution Score:** `ExecutionAgent` weights agent signals (60%) and strategy consensus (40%), adjusted by risk factors.
+8. **Detailed AI Reasoning Synthesis:** `ReasoningEngine` invokes Google Gemini LLM to generate an Executive Summary, Bullish Catalysts, Bearish Threats, and a 6-step mathematical reasoning breakdown.
+9. **Interactive Group Chat & Charts:** Full telemetry, API diagnostics, and dialogue monologues stream live into the dashboard's Inter-Agent Group Chat and price action charts.
 
 ---
 
 ## Folder-by-Folder Breakdown
 
-### `agents/` — The 7 Analysis Agents
-Each agent is a self-contained class with an `analyze(symbol)` method. They are **stateless** per call and return a dictionary of findings.
-
-### `data/` — Data Providers & Utilities
-Contains everything that talks to external APIs (Alpaca, Finnhub) plus caching, retry logic, and data models.
-
-### `indicators/` — Technical Indicators
-Pure math functions that operate on pandas Series or lists of prices. Used exclusively by the TechnicalAgent.
-
-### `memory/` — Persistence Layer
-JSON-backed storage for trade history, plus reflection and semantic memory layers that are already functional in a lightweight form.
-
-### `strategies/` — Trading Strategies
-Each strategy evaluates the full analysis context and casts a "vote" (buy/sell/hold with confidence). Used by the ExecutionAgent.
-
-### `templates/` — Web UI
-Single `index.html` with all CSS and JS inline. Dark-themed dashboard with tabs for Chat, Multi-Agent Analysis, and Trade History.
-
-### Root Files
-Entry points and configuration for the entire system.
+- **`agents/`** — 7 specialized analysis agents plus Screener and Execution agents.
+- **`strategies/`** — 5 rule-based strategy voters (`momentum.py`, `trend_following.py`, `mean_reversion.py`, `breakout.py`, `swing.py`).
+- **`indicators/`** — Pure math indicator functions (RSI, MACD, EMA, Bollinger, ATR, Volume, Multi-timeframe).
+- **`memory/`** — Persistence layer (`trade_history.py`), LLM reflections (`reflections.py`), TF-IDF vector store (`vector_store.py`), and AI reasoning synthesis (`reasoning.py`).
+- **`sizing/`** — Dynamic position sizing algorithms (Volatility targeting, Risk parity, Half Kelly criterion).
+- **`optimization/`** — Ensemble strategy weight optimization (`ensemble.py`).
+- **`reporting/`** — Summary report builders (`daily_report.py`).
+- **`backtesting/`** — Historical simulation engine and report generator (`engine.py`, `report.py`).
+- **`templates/`** — Single-page dashboard UI (`index.html`) featuring Chart.js charts, Group Chat workspace, API diagnostic bar, and educational modals.
 
 ---
 
 ## File-by-File Reference
 
-### Root-Level Files
+### Key Entry Points & Core Components
 
-#### `app.py` — **Flask Web Server (Main Entry Point)**
-- **What it does:** Hosts the web dashboard and exposes all REST API endpoints.
-- **Key components:**
-  - `technical_agent` — handles single-agent chat queries
-  - `portfolio_agent` — fetches live account info for the sidebar
-  - `orchestrator` — singleton from `get_orchestrator()`
-  - `trade_history` — persists trade/analysis records
-- **Routes:**
-  - `GET /` — renders dashboard
-  - `POST /chat` — chat with TradingAgent, MarketDataAgent, or TechnicalAgent
-  - `POST /api/analyze` — trigger full multi-agent pipeline
-  - `GET /api/messages?since=N` — poll agent communication log
-  - `GET /api/account` — live account snapshot (cash, equity, buying power)
-  - `GET /api/positions` — all open positions with unrealized P&L
-  - `POST /api/autonomous/start` — start background trading loop
-  - `POST /api/autonomous/stop` — stop background loop
-  - `POST /api/execute` — manual trade execution
-  - `GET /api/history?limit=N` — trade/analysis history
-  - `GET /api/history/stats` — summary counts
-
-#### `trading_agent.py` — **Standalone Natural-Language Trading Agent**
-- **What it does:** A chat-based agent powered by Google Gemini that talks to Alpaca. You text it things like "buy 10 shares of AAPL" and it executes.
-- **How it works:**
-  1. Takes user text → sends to Gemini with tool declarations
-  2. Gemini decides which tool to call (get price, buy, sell, get positions)
-  3. Code executes the tool → sends result back to Gemini
-  4. Gemini replies in plain English
-- **Tools available:** `get_account_info`, `get_positions`, `get_stock_price`, `buy_stock`, `sell_stock`
-- **Safety:** `paper=True` on Alpaca client. Never touches live money.
-- **Used by:** Chat tab in dashboard when agent_id = `"trading_agent"`
-
-#### `market_data_agent.py` — **Standalone Market Data Chat Agent**
-- **What it does:** Same pattern as `trading_agent.py`, but for market data queries.
-- **Tools:** `get_stock_price`, `get_stock_snapshot`, `get_historical_bars`
-- **Used by:** Chat tab when agent_id = `"market_data_collector"`
-
-#### `orchestrator.py` — **The Conductor**
-- **What it does:** Coordinates all 7 agents into a single analysis pipeline. Can run manually or on an autonomous schedule.
-- **Key classes:**
-  - `MessageBus` — thread-safe pub/sub that logs every inter-agent message with timestamps. Powers the real-time Communication Log in the UI.
-  - `Orchestrator` — the coordinator
-- **`analyze_symbol(symbol, auto_execute=False)` pipeline:**
-  1. MarketAgent fetches snapshot (price, bars, metrics)
-  2. TechnicalAgent computes RSI, MACD, EMA, Bollinger, ATR, volume
-  3. FundamentalAgent fetches company profile from Finnhub
-  4. NewsAgent fetches news + keyword sentiment
-  5. RiskAgent evaluates volatility (ATR) and RSI extremes
-  6. PortfolioAgent checks if you already own the stock
-  7. ExecutionAgent combines all inputs + runs 5 strategies → final decision
-  8. If `auto_execute=True` and confidence ≥ threshold → places real paper trade
-- **Autonomous loop:** `_autonomous_loop()` runs on a background thread, analyzing each symbol every N seconds.
-
-#### `main.py` — **Console Entry Point (No Web UI)**
-- **What it does:** Simple CLI that instantiates all agents and prints their analyses as JSON.
-- **Usage:** `python main.py` → type a symbol → see raw agent outputs.
-- **Useful for:** Debugging agent outputs without the web server.
-
-#### `config.py` — **Central Configuration**
-- Defines directory paths (`BASE_DIR`, `DATA_DIR`, `MEMORY_DIR`, etc.)
-- Loads API keys from environment variables:
-  - `ALPACA_API_KEY` / `ALPACA_SECRET_KEY`
-  - `GEMINI_API_KEY`
-  - `FINNHUB_API_KEY`
-- `DEFAULT_SYMBOL = "AAPL"`
-
-#### `requirements.txt` — Python dependencies
-- `google-genai` — Gemini LLM
-- `alpaca-py` — Alpaca trading + market data
-- `flask` — web server
-- `pandas`, `numpy` — data processing
-- `requests`, `python-dotenv`
+- **`app.py`**: Flask Web Server exposing REST API endpoints for analysis, chart data, diagnostics, inter-agent messages, sessions, backtests, screener, sizing, and reflections.
+- **`orchestrator.py`**: Central pub/sub coordinator featuring `MessageBus` with session filtering, `analyze_symbol()` pipeline, and autonomous background loop.
+- **`memory/reasoning.py`**: `ReasoningEngine` powered by Gemini LLM that synthesizes structured trade rationale, bullish/bearish thesis, and step-by-step math.
+- **`agents/execution_agent.py`**: Aggregates 5 strategy votes and 6 agent outputs into final trade decisions, attaches AI reasoning, and executes paper orders via Alpaca.
 
 ---
 
-### `agents/` — The 7 Agents
-
-#### `agents/market_agent.py` — **Data Fetcher**
-- **Responsibility:** Fetches raw market data from Alpaca. No AI decisions.
-- **Key methods:**
-  - `snapshot(symbol, timeframe, days)` → `MarketSnapshot` with bars, quote, trade, computed metrics
-  - `snapshot_multi_timeframe()` → snapshots across 1m, 5m, 15m, 1h, 1d
-  - `latest_quote()`, `latest_trade()`, `historical_bars()`
-- **Metrics computed:** change %, relative volume, VWAP, spread, gap %
-- **Caching:** Built-in TTL cache (default 60s) to avoid redundant API calls
-- **SIP handling:** Gracefully handles Alpaca SIP subscription errors with warnings
-- **Output:** `MarketSnapshot` dataclass (also defined in `data/models.py`)
-
-#### `agents/technical_agent.py` — **Chart Analyst**
-- **Responsibility:** Computes technical indicators from historical price data.
-- **How it works:** Calls `MarketAgent.snapshot()` → gets `bars` DataFrame → runs indicators.
-- **Indicators computed:**
-  - RSI(14)
-  - MACD + signal + histogram
-  - EMA(20), EMA(50)
-  - Bollinger Bands (upper, lower, mid)
-  - ATR(14)
-  - Volume ratio + volume trend (strong_buy/buy/neutral/sell/strong_sell)
-- **Output:** `{"status": "technical analysis ready", "symbol": "AAPL", "signals": {...}}`
-
-#### `agents/fundamental_agent.py` — **Company Analyst**
-- **Responsibility:** Evaluates company fundamentals via Finnhub.
-- **Data fetched:** Company profile → name, industry, sector, market cap, PE ratio, EPS, beta, dividend yield
-- **Scoring:**
-  - PE < 15 → +1 (value)
-  - PE > 40 → -1 (overvalued)
-  - Beta commentary (high = volatile, low = defensive)
-- **Output:** `{"symbol": "AAPL", "status": "...", "data": {"company": {...}}, "score": N, "reasons": [...]}`
-- **Graceful degradation:** Works fine without Finnhub API key (just skips company data)
-
-#### `agents/news_agent.py` — **Sentiment Scanner**
-- **Responsibility:** Fetches news articles and estimates sentiment.
-- **Data source:** Finnhub company-news API (last 7 days)
-- **Sentiment method:** Keyword counting
-  - Positive: beat, strong, growth, rise, rally, gain, bull, upgrade, outperform
-  - Negative: miss, weak, drop, fall, crash, bear, downgrade, underperform, loss
-- **Output:** `{"symbol": "AAPL", "articles": [...], "sentiment": "positive"|"negative"|"neutral", "sentiment_score": N}`
-- **Graceful degradation:** Skips if no Finnhub API key
-
-#### `agents/risk_agent.py` — **Risk Evaluator**
-- **Responsibility:** Assesses how risky a trade would be.
-- **Checks:**
-  - ATR(14) as % of price → < 2.5% = low, 2.5-5% = medium, > 5% = high
-  - RSI extremes (> 75 overbought warning, < 25 oversold warning)
-- **Output:** `{"risk_level": "low"|"medium"|"high", "checks": {"atr_percent": X, ...}}`
-
-#### `agents/execution_agent.py` — **The Decision Maker**
-- **Responsibility:** Combines ALL agent outputs + strategy votes into a final BUY/SELL/HOLD decision. Can place real trades.
-- **How the decision works:**
-  1. Runs all 5 strategies → each returns a vote (decision + confidence)
-  2. Computes agent-based score from technical/fundamental/news/risk/portfolio signals
-  3. **Combined score** = (agent_score × 0.6) + (strategy_score × 1.5)
-  4. Thresholds: score > 1.5 → BUY, score < -1.5 → SELL, else HOLD
-  5. Confidence = |score| / 4.0 (capped at 1.0)
-- **Auto-trade:** `maybe_auto_trade()` checks:
-  - Confidence ≥ `AUTO_EXECUTE_CONFIDENCE` (default 0.75, from `.env`)
-  - Anti-churn: won't buy if already long, won't sell if no position
-  - Default size: `$500` notional (configurable via `AUTO_TRADE_NOTIONAL`)
-- **Logging:** Every analysis and every order is logged to `TradeHistory`
-- **Output:** `{"action": "buy"|"sell"|"hold", "confidence": 0.0-1.0, "reason": "...", "raw_score": N, "strategy_votes": [...]}`
-
-#### `agents/portfolio_agent.py` — **Portfolio Tracker**
-- **Responsibility:** Reports current Alpaca paper account state.
-- **Data fetched:**
-  - Account: cash, buying power, portfolio value, equity
-  - Position for requested symbol (qty, avg entry, current price, unrealized P&L)
-  - ALL positions (for the sidebar positions table)
-- **Output:** `{"account": {...}, "position": {...}, "all_positions": [...]}`
-
----
-
-### `strategies/` — The 5 Strategy Voters
-
-Each strategy receives the full `context` dict (technical, fundamental, news, risk, portfolio, market) and returns a vote.
-
-| Strategy | Core Logic | Key Signals |
-|----------|-----------|-------------|
-| **Momentum** | `strategies/momentum.py` | Price change %, volume confirmation, RSI alignment, MACD direction |
-| **Trend Following** | `strategies/trend_following.py` | EMA20 vs EMA50, trend distance, Bollinger position, volume |
-| **Mean Reversion** | `strategies/mean_reversion.py` | RSI extremes, Bollinger band position, MACD histogram reversal |
-| **Breakout** | `strategies/breakout.py` | Large daily moves (>4%), massive volume surges (>2x), Bollinger squeeze |
-| **Swing** | `strategies/swing.py` | RSI swing zones (30-45, 55-70), MACD cross, fundamentals, portfolio anti-churn |
-
-**How votes are aggregated:** Positive votes add confidence, negative votes subtract. The net score feeds into ExecutionAgent's combined score.
-
----
-
-### `indicators/` — Math Utilities
-
-| File | Function | What it computes |
-|------|----------|-----------------|
-| `rsi.py` | `compute_rsi(series, period=14)` | Wilder-style RSI on pandas Series |
-| `macd.py` | `compute_macd(series, fast=12, slow=26, signal=9)` | MACD line, signal line, histogram |
-| `ema.py` | `compute_ema(series, period=20)` | Exponential moving average |
-| `bollinger.py` | `compute_bollinger(series, period=20, std=2)` | Upper, lower, middle bands |
-| `atr.py` | `compute_atr(high, low, close, period=14)` | Average True Range |
-| `volume.py` | `compute_volume_signals(volume, close)` | Volume ratio + trend classification |
-
-Each file also exports a `calculate_*` variant for backward compatibility with list-based callers.
-
----
-
-### `data/` — Data Layer
-
-#### `data/finnhub.py` — Finnhub API Client
-- Methods: `company_profile()`, `basic_financials()`, `news()`, `quote()`
-- Auto-injects API token. Gracefully returns `{"error": ...}` if no key.
-
-#### `data/providers/alpaca.py` — `AlpacaMarketDataProvider`
-- Production-grade Alpaca data provider with caching, retry logic, SIP error handling.
-- Methods: `latest_quote()`, `latest_trade()`, `historical_bars()`, `snapshot()`, `snapshot_multi_timeframe()`
-
-#### `data/providers/base.py` — Abstract Base Class
-- `MarketDataProvider` ABC defining the interface for any data provider.
-
-#### `data/models.py` — Data Classes
-- `MarketQuote`, `MarketTrade`, `MarketSnapshot` — structured containers for market data.
-
-#### `data/cache.py` — Simple TTL Cache
-- In-memory key-value cache with time-based expiration. Used by Alpaca provider.
-
-#### `data/retry.py` — Retry Decorator
-- `@retry(max_retries=3, delay=1.0)` — exponential backoff for API calls.
-
-#### Other `data/` files
-- `alpaca_data.py` — Thin wrapper around Alpaca quote API (legacy)
-- `sec.py`, `economic_calendar.py`, `validation.py` — Placeholders for future SEC filings and macro data
-
----
-
-### `memory/` — Persistence
-
-#### `memory/trade_history.py` — **Trade & Analysis Ledger**
-- **What it does:** JSON-file-backed persistent storage for every order placed and every analysis run.
-- **File location:** `memory/trade_history.json`
-- **Methods:**
-  - `record_order(...)` — logs a placed trade
-  - `record_analysis(...)` — logs an analysis decision
-  - `get_all(limit)` — newest-first history
-  - `get_stats()` — counts of orders, buys, sells, analyses
-- **Thread-safe:** Uses `threading.Lock()` for concurrent access.
-
-#### `memory/reflections.py` — **Trade Reflection Layer**
-- Uses the Gemini API to generate concise post-trade feedback for a single trade or a batch of trades.
-- Useful for journaling and improving decision quality over time.
-
-#### `memory/vector_store.py` — **Semantic Memory Layer**
-- Uses a lightweight TF-IDF-based vector store to search previous trade notes and trade-history text.
-- Good for finding patterns such as "buying after momentum breakout" or "high-volatility sell setups".
-
----
-
-### `templates/index.html` — The Dashboard
-
-A single-page dark-themed web app with:
-
-| Section | Description |
-|---------|-------------|
-| **Sidebar** | Live account snapshot (cash, portfolio, buying power, equity), positions table, autonomous trading controls |
-| **Chat Tab** | Talk to Trading Agent, Market Data Agent, or Technical Agent |
-| **Multi-Agent Analysis Tab** | Enter a symbol → click Run Analysis → see all 6 agent cards + Execution decision + Buy/Sell buttons |
-| **Trade History Tab** | Table of all past orders and analyses with stats (total orders, buy/sell counts) |
-| **Agent Communication Log** (right panel) | Real-time stream of every message agents send to each other, color-coded by sender |
-
-**Auto-refresh:** Account/positions every 30s. Communication log polls every 2s.
-
----
-
-## Agent Interactions (The Pipeline)
-
-When you trigger an analysis (or the autonomous loop does), here's exactly what happens:
-
-```
-Step 1: ORCHESTRATOR → MARKET_AGENT
-        "Fetch data for AAPL"
-        ← Returns: MarketSnapshot (price, bars, volume, metrics)
-
-Step 2: ORCHESTRATOR → TECHNICAL_AGENT (parallel-ready)
-        ← Returns: RSI, MACD, EMA, Bollinger, ATR, volume signals
-
-Step 3: ORCHESTRATOR → FUNDAMENTAL_AGENT
-        ← Returns: PE, EPS, market cap, beta, score
-
-Step 4: ORCHESTRATOR → NEWS_AGENT
-        ← Returns: sentiment (+/-/neutral), article headlines
-
-Step 5: ORCHESTRATOR → RISK_AGENT
-        ← Returns: risk level (low/medium/high), ATR%, warnings
-
-Step 6: ORCHESTRATOR → PORTFOLIO_AGENT
-        ← Returns: cash, positions, unrealized P&L
-
-Step 7: ORCHESTRATOR → EXECUTION_AGENT
-        ExecutionAgent internally:
-          a) Runs MomentumStrategy → vote
-          b) Runs TrendFollowingStrategy → vote
-          c) Runs MeanReversionStrategy → vote
-          d) Runs BreakoutStrategy → vote
-          e) Runs SwingStrategy → vote
-          f) Computes combined score
-        ← Returns: action (buy/sell/hold), confidence, reason, raw_score
-
-Step 8: ORCHESTRATOR (if auto_execute=True)
-        → EXECUTION_AGENT.maybe_auto_trade()
-        If confidence ≥ threshold:
-          → Places Alpaca paper order
-          → Logs to TradeHistory
-          → Publishes to MessageBus: "AUTO-TRADE EXECUTED"
-```
-
-Every step publishes messages to the `MessageBus`, which the dashboard polls every 2 seconds to display in the Communication Log.
-
----
-
-## Data Flow Diagram
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Alpaca    │────▶│ MarketAgent │────▶│TechnicalAgent│
-│   API       │     │             │     │             │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                              │
-┌─────────────┐     ┌─────────────┐     ┌────▼────────┐
-│  Finnhub    │────▶│Fundamental  │────▶│             │
-│   API       │     │   Agent     │     │             │
-└─────────────┘     └─────────────┘     │  Execution  │
-                                        │   Agent     │
-┌─────────────┐     ┌─────────────┐     │  (combines  │
-│  Finnhub    │────▶│  NewsAgent  │────▶│   all +     │
-│  News API   │     │             │     │ strategies) │
-└─────────────┘     └─────────────┘     └────┬────────┘
-                                             │
-┌─────────────┐     ┌─────────────┐     ┌────▼────────┐
-│   Alpaca    │────▶│Portfolio/   │────▶│  Alpaca     │
-│  Trading    │     │  RiskAgent  │     │  (order)    │
-│   API       │     │             │     │             │
-└─────────────┘     └─────────────┘     └─────────────┘
-                                             │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │  TradeHistory   │
-                                    │ (JSON file)     │
-                                    └─────────────────┘
-                                             │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │   Dashboard     │
-                                    │ (Flask + HTML)  │
-                                    └─────────────────┘
-```
-
----
-
-## API Endpoints
+## API Endpoints Reference
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Dashboard HTML |
-| `/chat` | POST | Chat with an agent (`message`, `agent_id`) |
-| `/api/analyze` | POST | Run full pipeline (`symbol`) |
-| `/api/messages` | GET | Poll comm log (`since` index) |
-| `/api/account` | GET | Account snapshot |
-| `/api/positions` | GET | All positions |
-| `/api/autonomous/start` | POST | Start loop (`symbols`, `interval_seconds`) |
-| `/api/autonomous/stop` | POST | Stop loop |
-| `/api/execute` | POST | Manual trade (`symbol`, `side`, `qty`\|`notional`) |
-| `/api/history` | GET | History entries (`limit`) |
-| `/api/history/stats` | GET | History stats |
-| `/api/backtest` | POST | Run a historical backtest (`symbol`, `days`, `initial_cash`) |
-| `/api/screen` | POST | Screen a watchlist for candidates |
-| `/api/reflection` | POST | Generate trade reflections from recent trades |
-| `/api/report/daily` | GET | Get a daily summary report from recent trades |
-| `/api/optimize` | POST | Optimize ensemble weights from backtest results |
-| `/api/weights` | GET | View current ensemble weights |
-| `/api/sizing` | POST | Estimate position size using volatility-targeting / Kelly / risk parity |
-| `/api/search` | POST | Semantic search over trade history and stored text |
+| `/` | GET | Renders Dashboard UI |
+| `/chat` | POST | Direct natural language chat with an agent |
+| `/api/analyze` | POST | Trigger full multi-agent pipeline (`symbol`) |
+| `/api/multiframe` | POST | Run multi-timeframe analysis overlay (`symbol`) |
+| `/api/chart_data` | POST | Fetch OHLC bars and indicator series for Chart.js |
+| `/api/diagnostics` | GET | Live connectivity status for Alpaca, Finnhub, and Gemini APIs |
+| `/api/messages` | GET | Poll inter-agent pub/sub log (`since`, `session_id`, `category`, `symbol`) |
+| `/api/sessions` | GET | List recorded analysis sessions |
+| `/api/account` | GET | Alpaca paper account balance snapshot |
+| `/api/positions` | GET | Current open positions and P&L |
+| `/api/autonomous/start` | POST | Start background autonomous trading loop |
+| `/api/autonomous/stop` | POST | Stop autonomous trading loop |
+| `/api/execute` | POST | Manually submit paper order |
+| `/api/sizing` | POST | Estimate position size (Vol targeting, Risk parity, Kelly) |
+| `/api/screen` | POST | Run market screener for top candidates |
+| `/api/backtest` | POST | Run historical backtest simulation |
+| `/api/reflection` | POST | Generate Gemini AI reflections on recent trade history |
+| `/api/report/daily` | GET | Daily performance summary report |
+| `/api/search` | POST | Semantic vector search over trade history |
+| `/api/history` | GET | Trade & analysis ledger history |
+| `/api/history/stats` | GET | Ledger statistics summary |
 
 ---
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+Configure in `.env`:
 
 ```env
-# Required
 ALPACA_API_KEY=your_paper_key
 ALPACA_SECRET_KEY=your_paper_secret
 GEMINI_API_KEY=your_gemini_key
@@ -476,8 +133,8 @@ GEMINI_API_KEY=your_gemini_key
 FINNHUB_API_KEY=your_finnhub_key
 
 # Auto-trading tuning
-AUTO_EXECUTE_CONFIDENCE=0.75    # 0.0 to 1.0
-AUTO_TRADE_NOTIONAL=500         # dollars per auto-trade
+AUTO_EXECUTE_CONFIDENCE=0.75
+AUTO_TRADE_NOTIONAL=500
 DEFAULT_SYMBOL=AAPL
 ```
 
@@ -489,37 +146,7 @@ DEFAULT_SYMBOL=AAPL
 # 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Configure .env (see above)
-
-# 3. Run the web dashboard
+# 2. Run dashboard
 python app.py
 # → Open http://127.0.0.1:5000/
-
-# 4. Or run the console version
-python main.py
 ```
-
----
-
-## Notes & Warnings
-
-- **This is PAPER TRADING only.** The `paper=True` flag on Alpaca clients ensures no real money is at risk. Never change this to `paper=False`.
-- **Finnhub API key is optional.** Without it, FundamentalAgent and NewsAgent will gracefully skip their data sources.
-- **Auto-trading is opt-in.** You must click "Start Loop" in the dashboard or call the API to enable autonomous trades.
-- **Strategies do not guarantee profits.** They are rule-based heuristics, not financial advice.
-
----
-
-## What to Improve Next
-
-The project is now much more complete than the original scaffold, but there are still high-value upgrades to consider:
-
-1. **Better backtesting realism** — add slippage, commissions, partial fills, and more realistic entry/exit logic.
-2. **Stronger memory** — replace the TF-IDF store with embeddings or a small local vector index if you want deeper semantic recall.
-3. **Safer autonomous trading** — introduce daily loss caps, max drawdown caps, and a kill-switch.
-4. **More data inputs** — add macro data, SEC filings, and alternative data sources.
-5. **Model-based decisioning** — move from fixed heuristics to learned or LLM-assisted scoring.
-6. **UI polish** — add charts, daily reports, and better trade explanations in the dashboard.
-7. **Testing coverage** — expand from smoke tests to behavior-focused backtest and orchestration tests.
-
-These improvements would push the system from a strong research prototype into a more robust trading copilot.

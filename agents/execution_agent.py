@@ -26,6 +26,7 @@ from strategies.mean_reversion import MeanReversionStrategy
 from strategies.breakout import BreakoutStrategy
 from strategies.swing import SwingStrategy
 from memory.trade_history import TradeHistory
+from memory.reasoning import ReasoningEngine
 from sizing import target_volatility_size, risk_parity_size, half_kelly
 from optimization.ensemble import StrategyEnsemble
 
@@ -51,6 +52,7 @@ class ExecutionAgent:
                 self._client = None
         self.history = TradeHistory()
         self.ensemble = StrategyEnsemble()
+        self.reasoning_engine = ReasoningEngine()
         self.strategies = [
             MomentumStrategy(),
             TrendFollowingStrategy(),
@@ -202,6 +204,21 @@ class ExecutionAgent:
         result["raw_score"] = round(combined_score, 2)
         result["agent_score"] = round(agent_score, 2)
         result["strategy_score"] = round(strat_score, 2)
+
+        # Generate comprehensive AI detailed reasoning breakdown
+        try:
+            result["detailed_reasoning"] = self.reasoning_engine.synthesize_reasoning(
+                symbol=symbol,
+                action=result["action"],
+                confidence=result["confidence"],
+                raw_score=combined_score,
+                agent_score=agent_score,
+                strat_score=strat_score,
+                strategy_votes=strategy_results,
+                context=ctx,
+            )
+        except Exception:
+            result["detailed_reasoning"] = {}
 
         # Log analysis safely
         try:

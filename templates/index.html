@@ -3,986 +3,1771 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Agent Trading Dashboard</title>
+    <title>Multi-Agent AI Trading Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
-            --bg: #07111f;
-            --panel: #101b2d;
-            --panel-2: #16233a;
-            --text: #f5f7fb;
-            --muted: #8fa0b8;
-            --accent: #4f8cff;
-            --accent-2: #2dd4bf;
-            --accent-3: #f59e0b;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --border: #243449;
+            --bg-dark: #080d1a;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --bg-card-hover: rgba(31, 41, 55, 0.9);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-color-strong: rgba(255, 255, 255, 0.15);
+            
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --text-dim: #6b7280;
+
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.25);
+            --accent-teal: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+
+            --badge-buy-bg: rgba(16, 185, 129, 0.15);
+            --badge-buy-text: #34d399;
+            --badge-buy-border: rgba(16, 185, 129, 0.3);
+
+            --badge-sell-bg: rgba(244, 63, 94, 0.15);
+            --badge-sell-text: #fb7185;
+            --badge-sell-border: rgba(244, 63, 94, 0.3);
+
+            --badge-hold-bg: rgba(156, 163, 175, 0.15);
+            --badge-hold-text: #cbd5e1;
+            --badge-hold-border: rgba(156, 163, 175, 0.3);
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
-            margin: 0;
-            font-family: "Segoe UI", Roboto, Arial, sans-serif;
-            background: radial-gradient(circle at top left, #12233d 0%, var(--bg) 60%);
-            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.1) 0%, transparent 40%);
+            color: var(--text-main);
             min-height: 100vh;
-            padding: 24px;
+            padding: 16px 24px;
+            line-height: 1.5;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: auto;
-            background: rgba(16, 27, 45, 0.95);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-            overflow: hidden;
-        }
-
-        .header {
-            padding: 24px 28px;
-            border-bottom: 1px solid var(--border);
-            background: linear-gradient(90deg, rgba(79,140,255,0.15), rgba(45,212,191,0.1));
-        }
-
-        .title-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        h1 { margin: 0; font-size: 1.6rem; }
-        .subtitle { margin-top: 6px; color: var(--muted); font-size: 0.95rem; }
-
-        .status-pill {
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(45,212,191,0.16);
-            color: var(--accent-2);
-            border: 1px solid rgba(45,212,191,0.25);
-            font-size: 0.9rem;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 280px 1fr 340px;
-            gap: 0;
-        }
-
-        .sidebar {
-            padding: 22px;
-            background: var(--panel-2);
-            border-right: 1px solid var(--border);
-        }
-
-        .card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 14px;
-            margin-bottom: 14px;
-        }
-
-        .card h3 {
-            margin: 0 0 8px;
-            font-size: 0.95rem;
-            color: var(--accent-2);
-        }
-
-        .stat {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-            color: var(--muted);
-            font-size: 0.92rem;
-        }
-
-        .stat strong { color: var(--text); }
-
-        .btn {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: filter 0.15s;
-        }
-        .btn:hover { filter: brightness(1.12); }
-        .btn-primary { background: linear-gradient(135deg, var(--accent), #6ba3ff); color: white; }
-        .btn-success { background: linear-gradient(135deg, var(--success), #4ade80); color: white; }
-        .btn-danger { background: linear-gradient(135deg, var(--danger), #f87171); color: white; }
-        .btn-small { padding: 6px 10px; font-size: 0.8rem; }
-
-        .main-panel {
-            padding: 22px;
+        /* Container & Layout */
+        .app-container {
+            max-width: 1600px;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             gap: 16px;
-            min-height: 600px;
         }
 
-        .tabs {
+        /* Header */
+        .header {
             display: flex;
-            gap: 8px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 8px;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 24px;
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            flex-wrap: wrap;
+            gap: 12px;
         }
-        .tab {
-            padding: 8px 16px;
-            border-radius: 10px;
+
+        .header-title-box h1 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title-box p {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            margin-top: 2px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .diag-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 9999px;
+            font-size: 0.76rem;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 0.9rem;
-            color: var(--muted);
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            transition: all 0.2s;
+        }
+
+        .diag-pill:hover { border-color: var(--primary); background: rgba(59, 130, 246, 0.1); }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .dot-green { background-color: #34d399; box-shadow: 0 0 6px #34d399; }
+        .dot-yellow { background-color: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+        .dot-red { background-color: #f87171; box-shadow: 0 0 6px #f87171; }
+
+        /* Dashboard Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr 340px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        /* Sidebar & Cards */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .card:hover {
+            border-color: var(--border-color-strong);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-header h3 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .stat-row strong {
+            color: var(--text-main);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Buttons & Controls */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.1);
+        }
+        .btn:active { transform: translateY(0); }
+
+        .btn-primary { background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; box-shadow: 0 4px 14px var(--primary-glow); }
+        .btn-success { background: linear-gradient(135deg, #059669, #10b981); color: white; }
+        .btn-danger { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid var(--border-color); }
+        .btn-small { padding: 6px 12px; font-size: 0.78rem; border-radius: 8px; }
+
+        /* Main Workspace Panel */
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        /* Navigation Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 6px;
+            border-radius: 14px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
             background: transparent;
-            border: 1px solid transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
         }
-        .tab.active {
-            background: rgba(79,140,255,0.12);
-            color: var(--accent);
-            border-color: rgba(79,140,255,0.2);
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px var(--primary-glow);
         }
-        .tab:hover:not(.active) { color: var(--text); }
+
+        .tab-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.04);
+        }
 
         .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .tab-content.active { display: flex; flex-direction: column; gap: 16px; }
 
-        .chat-window {
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            height: 360px;
-            overflow-y: auto;
-            padding: 14px;
-            background: linear-gradient(180deg, rgba(7,17,31,0.95), rgba(10,20,34,0.95));
+        /* Input Controls */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
-        .message {
+        .input-field, .select-field {
+            background: #0b1324;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: var(--text-main);
+            font-size: 0.88rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus, .select-field:focus {
+            border-color: var(--primary);
+        }
+
+        /* Decision Header Banner */
+        .decision-banner {
+            background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(31, 41, 55, 0.9));
+            border: 1px solid var(--border-color-strong);
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .decision-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .badge-large {
+            padding: 10px 22px;
+            border-radius: 12px;
+            font-size: 1.4rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .badge-buy { background: var(--badge-buy-bg); color: var(--badge-buy-text); border: 1px solid var(--badge-buy-border); }
+        .badge-sell { background: var(--badge-sell-bg); color: var(--badge-sell-text); border: 1px solid var(--badge-sell-border); }
+        .badge-hold { background: var(--badge-hold-bg); color: var(--badge-hold-text); border: 1px solid var(--badge-hold-border); }
+
+        .decision-metrics {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .metric-pill {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .metric-pill .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric-pill .val { font-size: 1.1rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+        /* Detailed AI Reasoning Container */
+        .reasoning-box {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .reasoning-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #60a5fa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .exec-summary {
+            font-size: 0.95rem;
+            color: #e2e8f0;
+            line-height: 1.6;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 14px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .thesis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .thesis-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .thesis-card h4 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .thesis-card.bullish h4 { color: #34d399; }
+        .thesis-card.bearish h4 { color: #fb7185; }
+
+        .thesis-card ul {
+            padding-left: 18px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .thesis-card li { margin-bottom: 6px; }
+
+        /* Strategy Voting Cards */
+        .section-heading {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 6px;
+        }
+
+        .strategies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .strategy-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .strategy-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .strategy-name {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #e5e7eb;
+            text-transform: capitalize;
+        }
+
+        .strategy-reason {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* 6 Agent Cards Grid */
+        .agents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+
+        .agent-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+        .agent-card h4 {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #60a5fa;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Group Chat Stream Container */
+        .chat-feed-container {
+            background: #060b17;
+            border: 1px solid var(--border-color-strong);
+            border-radius: 16px;
+            height: 580px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-feed-header {
+            padding: 12px 18px;
+            background: rgba(17, 24, 39, 0.9);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .chat-feed-stream {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .chat-message-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .agent-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .chat-bubble-box {
+            flex: 1;
+            background: rgba(17, 24, 39, 0.7);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 10px 14px;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
 
-        .message-bubble {
-            max-width: 80%;
-            padding: 10px 12px;
-            border-radius: 12px;
+        .chat-bubble-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+        }
+
+        .agent-title { font-weight: 700; color: #60a5fa; }
+        .target-arrow { color: var(--text-dim); }
+
+        .chat-bubble-text {
+            font-size: 0.88rem;
+            color: var(--text-main);
             line-height: 1.45;
-            font-size: 0.95rem;
             word-break: break-word;
         }
 
-        .user-message .message-bubble {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--accent), #6ba3ff);
-            color: white;
-        }
-
-        .agent-message .message-bubble {
-            align-self: flex-start;
-            background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.08);
-            color: var(--text);
-        }
-
-        .message-meta {
-            font-size: 0.75rem;
-            color: var(--muted);
-            padding: 0 2px;
-        }
-
-        .signal-card {
-            margin-top: 8px;
-            padding: 10px 12px;
-            border-radius: 12px;
-            background: rgba(79, 140, 255, 0.12);
-            border: 1px solid rgba(79, 140, 255, 0.18);
-        }
-
-        .signal-card-title {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--accent-2);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-
-        .signal-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .signal-item {
-            background: rgba(255,255,255,0.05);
-            border-radius: 8px;
-            padding: 8px;
-            font-size: 0.85rem;
-        }
-
-        .signal-item span { display: block; color: var(--muted); margin-bottom: 4px; }
-        .signal-item strong { color: var(--text); }
-
-        .input-area {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .input-area select,
-        .input-area input[type="text"],
-        .input-area input[type="number"] {
-            flex: 1;
-            min-width: 120px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            background: #0d1728;
-            color: var(--text);
-            outline: none;
-        }
-
-        .input-area button {
-            padding: 12px 16px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--accent), #6ea7ff);
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        /* Agent Communication Log */
-        .comm-log {
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            height: 500px;
-            overflow-y: auto;
-            padding: 12px;
-            background: rgba(7,17,31,0.7);
-            font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
-            font-size: 0.82rem;
-        }
-
-        .comm-entry {
-            padding: 6px 8px;
-            border-radius: 8px;
-            margin-bottom: 6px;
-            border-left: 3px solid var(--accent);
-            background: rgba(255,255,255,0.02);
-        }
-        .comm-entry.from-market { border-left-color: #60a5fa; }
-        .comm-entry.from-technical { border-left-color: #a78bfa; }
-        .comm-entry.from-fundamental { border-left-color: #fbbf24; }
-        .comm-entry.from-news { border-left-color: #f472b6; }
-        .comm-entry.from-risk { border-left-color: #ef4444; }
-        .comm-entry.from-execution { border-left-color: #22c55e; }
-        .comm-entry.from-portfolio { border-left-color: #2dd4bf; }
-        .comm-entry.from-user { border-left-color: var(--accent-3); }
-
-        .comm-header {
-            display: flex;
-            justify-content: space-between;
-            color: var(--muted);
-            font-size: 0.75rem;
-            margin-bottom: 2px;
-        }
-        .comm-from { font-weight: 600; color: var(--text); }
-        .comm-msg { color: #cbd5e1; }
-
-        /* Multi-Agent Analysis */
-        .analysis-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 12px;
-            margin-top: 12px;
-        }
-        .analysis-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 14px;
-        }
-        .analysis-card h4 {
-            margin: 0 0 8px;
-            font-size: 0.9rem;
-            color: var(--accent-2);
-        }
-        .analysis-card .badge {
+        .category-tag {
             display: inline-block;
             padding: 2px 8px;
             border-radius: 6px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
-            margin-top: 4px;
-        }
-        .badge-buy { background: rgba(34,197,94,0.15); color: #4ade80; }
-        .badge-sell { background: rgba(239,68,68,0.15); color: #f87171; }
-        .badge-hold { background: rgba(148,163,184,0.15); color: #94a3b8; }
-        .badge-high { background: rgba(239,68,68,0.15); color: #f87171; }
-        .badge-medium { background: rgba(245,158,11,0.15); color: #fbbf24; }
-        .badge-low { background: rgba(34,197,94,0.15); color: #4ade80; }
-
-        .trade-controls {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-            flex-wrap: wrap;
-        }
-
-        .positions-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
-        .positions-table th, .positions-table td {
-            text-align: left;
-            padding: 8px 6px;
-            border-bottom: 1px solid var(--border);
-        }
-        .positions-table th { color: var(--muted); font-weight: 500; }
-
-        .backtest-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 10px;
-            margin-bottom: 14px;
-        }
-        .backtest-stat {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px;
-            text-align: center;
-        }
-        .backtest-stat .label {
-            font-size: 0.75rem;
-            color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 4px;
-        }
-        .backtest-stat .value {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--text);
         }
 
-        .screener-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .tag-api { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+        .tag-dialogue { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+        .tag-monologue { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+        .tag-warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+
+        /* Side Communication Log Panel */
+        .comm-panel {
+            display: flex;
+            flex-direction: column;
             gap: 10px;
-        }
-        .screener-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 12px;
-        }
-        .screener-card .sym {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--accent-2);
-        }
-        .screener-card .score {
-            font-size: 0.85rem;
-            color: var(--muted);
+            height: calc(100vh - 120px);
+            position: sticky;
+            top: 16px;
         }
 
-        @media (max-width: 1100px) {
-            .dashboard-grid { grid-template-columns: 240px 1fr; }
+        .comm-log {
+            flex: 1;
+            background: #070d18;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 12px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #0f172a;
+            border: 1px solid var(--border-color-strong);
+            border-radius: 20px;
+            max-width: 850px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 28px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h2 { font-size: 1.3rem; color: #60a5fa; }
+        .modal-close { font-size: 1.5rem; color: var(--text-muted); cursor: pointer; border: none; background: none; }
+
+        /* Guide Grid */
+        .guide-section { margin-bottom: 20px; }
+        .guide-section h3 { font-size: 1rem; color: var(--accent-teal); margin-bottom: 8px; }
+        .guide-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+        .guide-item { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; }
+        .guide-item h4 { font-size: 0.85rem; color: #e5e7eb; margin-bottom: 4px; }
+        .guide-item p { font-size: 0.78rem; color: var(--text-muted); }
+
+        /* Tables */
+        .custom-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .custom-table th, .custom-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .custom-table th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+
+        /* Chart Canvas Containers */
+        .chart-container { position: relative; width: 100%; height: 320px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 16px; }
+        .subchart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .subchart-container { position: relative; height: 180px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 12px; }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid { grid-template-columns: 280px 1fr; }
             .comm-panel { display: none; }
         }
         @media (max-width: 768px) {
             .dashboard-grid { grid-template-columns: 1fr; }
-            .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+            .subchart-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="title-row">
-                <div>
-                    <h1>Multi-Agent Trading Dashboard</h1>
-                    <div class="subtitle">AI agents analyze, discuss, and trade — you watch and intervene.</div>
-                </div>
-                <div class="status-pill" id="status-pill">Paper Trading Live</div>
-            </div>
+
+<div class="app-container">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-title-box">
+            <h1>🤖 Multi-Agent AI Trading Cockpit</h1>
+            <p>7 Specialized Agents &bull; 5 Strategy Voters &bull; Live Telemetry & API Diagnostics</p>
         </div>
+        <div class="header-actions">
+            <!-- API Diagnostic Pills -->
+            <div class="diag-pill" onclick="openModal('diag-modal')" title="Alpaca Paper Trading API Status">
+                <span class="status-dot dot-green"></span> Alpaca API: OK
+            </div>
+            <div class="diag-pill" id="finnhub-pill" onclick="openModal('diag-modal')" title="Finnhub API Status">
+                <span class="status-dot dot-yellow" id="finnhub-dot"></span> Finnhub API
+            </div>
+            <div class="diag-pill" id="gemini-pill" onclick="openModal('diag-modal')" title="Gemini LLM Status">
+                <span class="status-dot dot-green" id="gemini-dot"></span> Gemini AI
+            </div>
+            <button class="btn btn-secondary btn-small" onclick="openModal('guide-modal')">📘 System Guide</button>
+        </div>
+    </header>
 
-        <div class="dashboard-grid">
-            <aside class="sidebar">
-                <div class="card">
-                    <h3>Account Snapshot</h3>
-                    <div class="stat"><span>Cash</span><strong id="acc-cash">${{ account_info.cash }}</strong></div>
-                    <div class="stat"><span>Portfolio</span><strong id="acc-portfolio">${{ account_info.portfolio_value }}</strong></div>
-                    <div class="stat"><span>Buying Power</span><strong id="acc-bp">${{ account_info.buying_power }}</strong></div>
-                    <div class="stat"><span>Equity</span><strong id="acc-equity">${{ account_info.equity }}</strong></div>
-                    <button class="btn btn-primary btn-small" style="width:100%;margin-top:8px;" onclick="refreshAccount()">Refresh</button>
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Account Snapshot Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>💳 Account Snapshot</h3>
+                    <button class="btn btn-secondary btn-small" onclick="refreshAccount()">↻</button>
+                </div>
+                <div class="stat-row"><span>Cash Balance</span><strong id="acc-cash">${{ account_info.cash }}</strong></div>
+                <div class="stat-row"><span>Portfolio Value</span><strong id="acc-portfolio">${{ account_info.portfolio_value }}</strong></div>
+                <div class="stat-row"><span>Buying Power</span><strong id="acc-bp">${{ account_info.buying_power }}</strong></div>
+                <div class="stat-row"><span>Total Equity</span><strong id="acc-equity">${{ account_info.equity }}</strong></div>
+            </div>
+
+            <!-- Open Positions Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📈 Open Positions</h3>
+                </div>
+                <div id="positions-container" style="font-size:0.85rem;">
+                    <div style="color:var(--text-muted);">Loading positions...</div>
+                </div>
+            </div>
+
+            <!-- Autonomous Control Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚡ Autonomous Engine</h3>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;">Auto-runs multi-agent analysis loop & places paper trades when confidence &ge; 75%.</p>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-success btn-small" style="flex:1;" onclick="startAutonomous()">Start Loop</button>
+                    <button class="btn btn-danger btn-small" style="flex:1;" onclick="stopAutonomous()">Stop</button>
+                </div>
+                <div id="autonomous-status" style="margin-top:8px;font-size:0.78rem;color:var(--text-muted);text-align:center;">Status: Idle</div>
+            </div>
+        </aside>
+
+        <!-- Main Panel -->
+        <main class="main-panel">
+            <!-- Tab Navigation Bar -->
+            <nav class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('analysis', this)">🔬 Multi-Agent Workspace</button>
+                <button class="tab-btn" onclick="switchTab('groupchat', this)">💬 Inter-Agent Group Chat</button>
+                <button class="tab-btn" onclick="switchTab('chat', this)">👤 Chat with Agent</button>
+                <button class="tab-btn" onclick="switchTab('screener', this)">🔍 Screener</button>
+                <button class="tab-btn" onclick="switchTab('backtest', this)">🧪 Backtest Lab</button>
+                <button class="tab-btn" onclick="switchTab('reflections', this)">🧠 AI Reflections</button>
+                <button class="tab-btn" onclick="switchTab('search', this)">🔎 Vector Search</button>
+                <button class="tab-btn" onclick="switchTab('history', this)">📜 History</button>
+            </nav>
+
+            <!-- TAB 1: Multi-Agent Analysis Workspace -->
+            <div id="tab-analysis" class="tab-content active">
+                <div class="input-group">
+                    <input type="text" id="analysis-symbol" class="input-field" placeholder="Ticker Symbol (e.g. AAPL)" value="AAPL" style="width:180px;font-weight:600;text-transform:uppercase;">
+                    <select id="analysis-timeframe" class="select-field">
+                        <option value="single">Single Timeframe (1D)</option>
+                        <option value="multi">Multi-Timeframe Overlay</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="runAnalysis()">Run Multi-Agent Pipeline</button>
+                    <button class="btn btn-secondary" onclick="openSizingModal()">📐 Position Sizer</button>
                 </div>
 
-                <div class="card">
-                    <h3>Positions</h3>
-                    <div id="positions-container">
-                        <div style="color:var(--muted);font-size:0.85rem;">Loading...</div>
-                    </div>
+                <div id="analysis-loading" style="display:none;padding:40px;text-align:center;color:var(--text-muted);">
+                    <div style="font-size:1.2rem;margin-bottom:8px;">🤖 Orchestrating 7 Agents & 5 Strategy Voters...</div>
+                    <div style="font-size:0.85rem;">Gathering price data, indicators, fundamentals, news sentiment, risk parameters & Gemini reasoning.</div>
                 </div>
 
-                <div class="card">
-                    <h3>Screener</h3>
-                    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;">Find symbols with momentum + volume.</div>
-                    <button class="btn btn-primary btn-small" style="width:100%;" onclick="runScreener()">Run Screener</button>
-                    <div id="screener-results" style="margin-top:10px;"></div>
-                </div>
-
-                <div class="card">
-                    <h3>Autonomous Trading</h3>
-                    <div style="font-size:0.85rem;color:var(--muted);margin-bottom:10px;">
-                        Agents will analyze symbols on a schedule and log decisions.
-                    </div>
-                    <div class="trade-controls">
-                        <button class="btn btn-success btn-small" onclick="startAutonomous()">Start Loop</button>
-                        <button class="btn btn-danger btn-small" onclick="stopAutonomous()">Stop</button>
-                    </div>
-                    <div id="autonomous-status" style="margin-top:8px;font-size:0.8rem;color:var(--muted);">Stopped</div>
-                </div>
-            </aside>
-
-            <section class="main-panel">
-                <div class="tabs">
-                    <div class="tab active" onclick="switchTab('chat')">Agent Chat</div>
-                    <div class="tab" onclick="switchTab('analysis')">Multi-Agent Analysis</div>
-                    <div class="tab" onclick="switchTab('history')">Trade History</div>
-                    <div class="tab" onclick="switchTab('backtest')">Backtest</div>
-                </div>
-
-                <!-- Chat Tab -->
-                <div id="tab-chat" class="tab-content active">
-                    <div class="chat-window" id="chat-window">
-                        <div class="message agent-message">
-                            <div class="message-bubble">Welcome back. Choose an agent and ask for account info, a stock quote, or a market analysis.</div>
-                            <div class="message-meta">System</div>
+                <div id="analysis-results" style="display:none;display:flex;flex-direction:column;gap:16px;">
+                    <!-- Decision Header Banner -->
+                    <div class="decision-banner">
+                        <div class="decision-left">
+                            <div id="decision-badge" class="badge-large badge-hold">HOLD</div>
+                            <div>
+                                <h2 id="decision-ticker" style="font-size:1.3rem;margin-bottom:2px;">AAPL Analysis</h2>
+                                <div id="decision-timestamp" style="font-size:0.8rem;color:var(--text-muted);"></div>
+                            </div>
+                        </div>
+                        <div class="decision-metrics">
+                            <div class="metric-pill"><span class="label">Confidence</span><span id="metric-confidence" class="val">0%</span></div>
+                            <div class="metric-pill"><span class="label">Combined Score</span><span id="metric-combined" class="val">0.00</span></div>
+                            <div class="metric-pill"><span class="label">Agent Score</span><span id="metric-agent" class="val">0.00</span></div>
+                            <div class="metric-pill"><span class="label">Strategy Score</span><span id="metric-strat" class="val">0.00</span></div>
+                        </div>
+                        <div>
+                            <button class="btn btn-success" onclick="execTradeFromBanner('buy')">Buy Shares</button>
+                            <button class="btn btn-danger" onclick="execTradeFromBanner('sell')">Sell Shares</button>
                         </div>
                     </div>
-                    <div class="input-area">
-                        <select id="agent-select">
-                            <option value="trading_agent">Trading Agent</option>
+
+                    <!-- Detailed AI Reasoning Section -->
+                    <div class="reasoning-box">
+                        <div class="reasoning-title">💡 Detailed AI Trade Rationale & Thesis</div>
+                        <div id="reasoning-executive" class="exec-summary">Run an analysis to synthesize AI trade rationale...</div>
+
+                        <div class="thesis-grid">
+                            <div class="thesis-card bullish">
+                                <h4>🟢 Bullish Catalysts & Drivers</h4>
+                                <ul id="bullish-list"><li>None identified</li></ul>
+                            </div>
+                            <div class="thesis-card bearish">
+                                <h4>🔴 Bearish Factors & Risk Threats</h4>
+                                <ul id="bearish-list"><li>None identified</li></ul>
+                            </div>
+                        </div>
+
+                        <div style="font-size:0.85rem;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.02);padding:10px 14px;border-radius:10px;border:1px solid var(--border-color);">
+                            <span>🛡️ <strong>Risk Profile:</strong> <span id="risk-summary-text">Medium Risk</span></span>
+                            <span>📊 <strong>Strategy Consensus:</strong> <span id="strat-summary-text">5 Voters</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Financial Charts -->
+                    <div style="display:flex;flex-direction:column;gap:12px;">
+                        <h3 class="section-heading">📈 Price Action & Technical Indicator Overlay</h3>
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                        <div class="subchart-grid">
+                            <div class="subchart-container"><canvas id="rsiChart"></canvas></div>
+                            <div class="subchart-container"><canvas id="macdChart"></canvas></div>
+                        </div>
+                    </div>
+
+                    <!-- 5 Strategy Voting Cards -->
+                    <div>
+                        <h3 class="section-heading">🗳️ The 5 Strategy Hypothesis Voters</h3>
+                        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:10px;">Each strategy evaluates the context independently and casts a vote with a confidence weighting.</p>
+                        <div class="strategies-grid" id="strategies-grid"></div>
+                    </div>
+
+                    <!-- 6 Specialized Agent Cards -->
+                    <div>
+                        <h3 class="section-heading">🕵️ Specialized Agent Findings</h3>
+                        <div class="agents-grid" id="agents-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Inter-Agent Group Chat Workspace -->
+            <div id="tab-groupchat" class="tab-content">
+                <div class="chat-feed-container">
+                    <div class="chat-feed-header">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <h3 style="font-size:1rem;color:#60a5fa;">💬 Inter-Agent Group Chat & Telemetry Stream</h3>
+                            <select id="chat-session-select" class="select-field" style="padding:6px 12px;font-size:0.8rem;" onchange="filterChatBySession()">
+                                <option value="">Live Feed (All Runs)</option>
+                            </select>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-secondary btn-small" onclick="filterChatCategory('')">All</button>
+                            <button class="btn btn-secondary btn-small" onclick="filterChatCategory('agent_dialogue')">💬 Hand-offs</button>
+                            <button class="btn btn-secondary btn-small" onclick="filterChatCategory('api_diagnostic')">🛠️ API Calls</button>
+                            <button class="btn btn-secondary btn-small" onclick="filterChatCategory('decision_monologue')">🎯 Monologues</button>
+                            <button class="btn btn-secondary btn-small" onclick="clearGroupChat()">Clear</button>
+                        </div>
+                    </div>
+                    <div class="chat-feed-stream" id="group-chat-stream">
+                        <!-- Messages dynamically populated -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Agent Chat -->
+            <div id="tab-chat" class="tab-content">
+                <div class="card" style="height:450px;display:flex;flex-direction:column;">
+                    <div class="card-header">
+                        <h3>👤 Direct Chat with Agent</h3>
+                        <select id="agent-chat-select" class="select-field" style="padding:6px 12px;font-size:0.82rem;">
+                            <option value="trading_agent">Trading Agent (Alpaca Broker Access)</option>
                             <option value="market_data_collector">Market Data Collector</option>
                             <option value="technical_agent">Technical Agent</option>
                         </select>
-                        <input type="text" id="user-input" placeholder="Ask your agent something...">
-                        <button onclick="sendMessage()">Send</button>
                     </div>
-                </div>
-
-                <!-- Analysis Tab -->
-                <div id="tab-analysis" class="tab-content">
-                    <div class="input-area" style="margin-bottom:8px;">
-                        <input type="text" id="analysis-symbol" placeholder="Symbol (e.g. AAPL)" value="AAPL">
-                        <button class="btn btn-primary" onclick="runAnalysis()">Run Analysis</button>
-                    </div>
-                    <div id="analysis-results" style="display:none;">
-                        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
-                            <h3 style="margin:0;">Results</h3>
-                            <span id="analysis-action" class="badge badge-hold">HOLD</span>
-                            <span id="analysis-confidence" style="font-size:0.85rem;color:var(--muted);"></span>
+                    <div id="chat-window" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;background:#080e1b;border-radius:12px;margin-bottom:12px;">
+                        <div style="background:rgba(255,255,255,0.05);padding:10px 14px;border-radius:12px;font-size:0.88rem;">
+                            👋 Welcome. Select an agent above and type a question in natural language (e.g. "What is my cash balance?", "Buy 5 shares of AAPL", "Show historical bars for TSLA").
                         </div>
-                        <div class="analysis-grid" id="analysis-grid"></div>
                     </div>
-                    <div id="analysis-loading" style="display:none;color:var(--muted);padding:20px;">Running multi-agent analysis...</div>
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="input-field" placeholder="Ask your agent something..." style="flex:1;" onkeypress="if(event.key==='Enter') sendChatMessage()">
+                        <button class="btn btn-primary" onclick="sendChatMessage()">Send</button>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Trade History Tab -->
-                <div id="tab-history" class="tab-content">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <h3 style="margin:0;">Trade & Analysis History</h3>
-                        <button class="btn btn-primary btn-small" onclick="loadHistory()">Refresh</button>
+            <!-- TAB 4: Screener -->
+            <div id="tab-screener" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔍 Market Screener</h3>
+                        <button class="btn btn-primary btn-small" onclick="runScreener()">Run Screener</button>
                     </div>
-                    <div id="history-stats" style="margin-bottom:12px;font-size:0.85rem;color:var(--muted);"></div>
-                    <div class="history-table-wrap" style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-                        <table class="positions-table" id="history-table">
-                            <thead>
-                                <tr><th>Time</th><th>Type</th><th>Symbol</th><th>Side/Action</th><th>Confidence</th><th>Reason</th></tr>
-                            </thead>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Discovers symbols matching high relative volume, price momentum, and bullish trend alignment.</p>
+                    <div id="screener-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;">
+                        <div style="color:var(--text-muted);font-size:0.85rem;">Click "Run Screener" to scan watchlist candidates.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Backtest Lab -->
+            <div id="tab-backtest" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🧪 Strategy Backtesting Simulator</h3>
+                    </div>
+                    <div class="input-group" style="margin-bottom:14px;">
+                        <input type="text" id="bt-symbol" class="input-field" value="AAPL" placeholder="Symbol" style="width:110px;">
+                        <input type="number" id="bt-days" class="input-field" value="252" placeholder="Days" style="width:100px;">
+                        <input type="number" id="bt-cash" class="input-field" value="10000" placeholder="Initial Cash" style="width:120px;">
+                        <button class="btn btn-primary" onclick="runBacktest()">Run Backtest</button>
+                    </div>
+                    <div id="bt-results" style="display:none;display:flex;flex-direction:column;gap:14px;">
+                        <div id="bt-stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;"></div>
+                        <div class="chart-container" style="height:280px;">
+                            <canvas id="equityChart"></canvas>
+                        </div>
+                        <div>
+                            <h4 style="font-size:0.9rem;margin-bottom:8px;color:#60a5fa;">Simulated Trades Log</h4>
+                            <div style="border:1px solid var(--border-color);border-radius:12px;max-height:220px;overflow-y:auto;">
+                                <table class="custom-table" id="bt-trades-table">
+                                    <thead><tr><th>Entry Date</th><th>Exit Date</th><th>Side</th><th>Entry $</th><th>Exit $</th><th>P&L ($)</th></tr></thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: AI Reflections -->
+            <div id="tab-reflections" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🧠 AI Trade Reflection Engine & Daily Reports</h3>
+                        <button class="btn btn-primary btn-small" onclick="generateReflection()">Generate AI Reflection</button>
+                    </div>
+                    <div id="reflection-output" style="background:rgba(255,255,255,0.03);padding:14px;border-radius:12px;font-size:0.9rem;margin-bottom:16px;line-height:1.6;border:1px solid var(--border-color);">
+                        Click "Generate AI Reflection" to analyze recent paper trading performance with Gemini.
+                    </div>
+                    <div class="card-header">
+                        <h3>📊 Daily Performance Summary</h3>
+                        <button class="btn btn-secondary btn-small" onclick="loadDailyReport()">Refresh Report</button>
+                    </div>
+                    <div id="daily-report-output" style="font-size:0.85rem;">Click "Refresh Report" to load daily stats.</div>
+                </div>
+            </div>
+
+            <!-- TAB 7: Vector Search -->
+            <div id="tab-search" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>🔎 Semantic Memory Search</h3>
+                    </div>
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Query trade history, notes, and agent rationale using TF-IDF vector similarity.</p>
+                    <div class="input-group" style="margin-bottom:14px;">
+                        <input type="text" id="search-query" class="input-field" placeholder="e.g. oversold breakout, RSI bounce, high volatility" style="flex:1;" onkeypress="if(event.key==='Enter') runVectorSearch()">
+                        <button class="btn btn-primary" onclick="runVectorSearch()">Search Memory</button>
+                    </div>
+                    <div id="search-results" style="display:flex;flex-direction:column;gap:10px;"></div>
+                </div>
+            </div>
+
+            <!-- TAB 8: History -->
+            <div id="tab-history" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📜 Trade & Analysis History Ledger</h3>
+                        <button class="btn btn-secondary btn-small" onclick="loadHistory()">Refresh</button>
+                    </div>
+                    <div id="history-stats-bar" style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;"></div>
+                    <div style="border:1px solid var(--border-color);border-radius:12px;overflow:hidden;">
+                        <table class="custom-table" id="history-table">
+                            <thead><tr><th>Timestamp</th><th>Type</th><th>Symbol</th><th>Action / Side</th><th>Confidence</th><th>Reasoning</th></tr></thead>
                             <tbody></tbody>
                         </table>
                     </div>
                 </div>
+            </div>
+        </main>
 
-                <!-- Backtest Tab -->
-                <div id="tab-backtest" class="tab-content">
-                    <div class="input-area" style="margin-bottom:12px;">
-                        <input type="text" id="backtest-symbol" placeholder="Symbol" value="AAPL" style="min-width:100px;">
-                        <input type="number" id="backtest-days" placeholder="Days" value="252" style="min-width:80px;">
-                        <input type="number" id="backtest-cash" placeholder="Cash" value="10000" style="min-width:100px;">
-                        <button class="btn btn-primary" onclick="runBacktest()">Run Backtest</button>
-                    </div>
-                    <div id="backtest-loading" style="display:none;color:var(--muted);padding:16px;">Running backtest...</div>
-                    <div id="backtest-results" style="display:none;">
-                        <div class="backtest-stats" id="backtest-stats"></div>
-                        <h4 style="margin:0 0 8px;color:var(--accent-2);">Trades</h4>
-                        <div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-                            <table class="positions-table" id="backtest-trades">
-                                <thead><tr><th>Entry</th><th>Exit</th><th>Side</th><th>Entry $</th><th>Exit $</th><th>P&L</th></tr></thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
+        <!-- Right Panel: Side Log -->
+        <aside class="comm-panel">
+            <div class="card" style="padding:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <h3 style="font-size:0.9rem;color:#60a5fa;">💬 Live Agent Log</h3>
+                    <button class="btn btn-secondary btn-small" onclick="clearCommLog()">Clear</button>
                 </div>
-            </section>
+                <div style="font-size:0.75rem;color:var(--text-muted);">Real-time inter-agent event bus</div>
+            </div>
+            <div class="comm-log" id="comm-log"></div>
+        </aside>
+    </div>
+</div>
 
-            <aside class="comm-panel sidebar" style="border-left:1px solid var(--border);border-right:none;">
-                <div class="card" style="margin-bottom:10px;">
-                    <h3>Agent Communication Log</h3>
-                    <div style="font-size:0.8rem;color:var(--muted);">Real-time inter-agent messages</div>
-                </div>
-                <div class="comm-log" id="comm-log"></div>
-            </aside>
+<!-- Modal: API Diagnostics -->
+<div id="diag-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:650px;">
+        <div class="modal-header">
+            <h2>🛠️ System & API Health Diagnostics</h2>
+            <button class="modal-close" onclick="closeModal('diag-modal')">&times;</button>
+        </div>
+        <div id="diag-modal-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div style="color:var(--text-muted);">Loading API diagnostic status...</div>
         </div>
     </div>
+</div>
 
-    <script>
-        // ---------- Utilities ----------
-        function formatSignalValue(value) {
-            if (typeof value === 'number') {
-                if (Math.abs(value) >= 1000) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
-                return value.toFixed(2);
-            }
-            return value;
-        }
-        function formatSignalKey(key) {
-            return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        }
-        function formatMoney(v) {
-            if (v === undefined || v === null) return '$0.00';
-            return '$' + parseFloat(v).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        }
+<!-- Modal: System Architecture & Guide -->
+<div id="guide-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>📘 Multi-Agent Trading System Architecture & Guide</h2>
+            <button class="modal-close" onclick="closeModal('guide-modal')">&times;</button>
+        </div>
+        
+        <div class="guide-section">
+            <h3>🤖 The 7 Specialized Agents</h3>
+            <div class="guide-grid">
+                <div class="guide-item"><h4>1. Market Agent</h4><p>Fetches real-time quotes, trades, and daily/sub-minute OHLCV bars from Alpaca API with TTL caching.</p></div>
+                <div class="guide-item"><h4>2. Technical Agent</h4><p>Computes technical indicators (RSI, MACD, EMA, Bollinger Bands, ATR, Volume ratios) across timeframes.</p></div>
+                <div class="guide-item"><h4>3. Fundamental Agent</h4><p>Scans company profiles from Finnhub to evaluate P/E, EPS, Beta, and market cap valuation.</p></div>
+                <div class="guide-item"><h4>4. News Agent</h4><p>Gathers company news headlines and calculates keyword-based sentiment (positive/negative/neutral).</p></div>
+                <div class="guide-item"><h4>5. Risk Agent</h4><p>Assesses volatility (ATR% of price) and RSI overbought/oversold extreme warnings.</p></div>
+                <div class="guide-item"><h4>6. Portfolio Agent</h4><p>Tracks cash, buying power, equity, and open position state to avoid churn.</p></div>
+                <div class="guide-item"><h4>7. Execution Agent</h4><p>Combines agent scores (60%) and strategy ensemble (40%) to issue final BUY/SELL/HOLD decision with confidence %.</p></div>
+            </div>
+        </div>
 
-        // ---------- Tabs ----------
-        function switchTab(name) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('tab-' + name).classList.add('active');
-        }
+        <div class="guide-section">
+            <h3>🗳️ The 5 Strategy Hypothesis Voters</h3>
+            <div class="guide-grid">
+                <div class="guide-item"><h4>Momentum</h4><p>Evaluates price change %, volume surges, and RSI/MACD directional alignment.</p></div>
+                <div class="guide-item"><h4>Trend Following</h4><p>Checks EMA(20) vs EMA(50) crossover, trend distance, and ATR dampening.</p></div>
+                <div class="guide-item"><h4>Mean Reversion</h4><p>Identifies oversold/overbought RSI extremes and Bollinger Band touch reversals.</p></div>
+                <div class="guide-item"><h4>Breakout</h4><p>Detects large price moves (&gt;4%), volume surges (&gt;2x), and Bollinger squeezes.</p></div>
+                <div class="guide-item"><h4>Swing</h4><p>Combines RSI swing zones (30-45 buy, 55-70 sell), MACD cross, and portfolio state.</p></div>
+            </div>
+        </div>
+    </div>
+</div>
 
-        // ---------- Chat ----------
-        function renderSignals(signals, container) {
-            if (!signals || typeof signals !== 'object') return;
-            const entries = Object.entries(signals).filter(([, value]) => value !== null && value !== undefined);
-            if (!entries.length) return;
-            const signalCard = document.createElement('div');
-            signalCard.className = 'signal-card';
-            signalCard.innerHTML = `
-                <div class="signal-card-title">Technical Signals</div>
-                <div class="signal-grid">
-                    ${entries.map(([key, value]) => `
-                        <div class="signal-item">
-                            <span>${formatSignalKey(key)}</span>
-                            <strong>${formatSignalValue(value)}</strong>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            container.appendChild(signalCard);
-        }
+<!-- Modal: Position Sizer -->
+<div id="sizing-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:500px;">
+        <div class="modal-header">
+            <h2>📐 Smart Position Size Estimator</h2>
+            <button class="modal-close" onclick="closeModal('sizing-modal')">&times;</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div class="input-group">
+                <label style="width:120px;font-size:0.85rem;color:var(--text-muted);">Method:</label>
+                <select id="size-method" class="select-field" style="flex:1;">
+                    <option value="vol_target">Volatility Targeting</option>
+                    <option value="risk_parity">Risk Parity</option>
+                    <option value="kelly">Half Kelly Criterion</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label style="width:120px;font-size:0.85rem;color:var(--text-muted);">Total Equity ($):</label>
+                <input type="number" id="size-equity" class="input-field" value="100000" style="flex:1;">
+            </div>
+            <div class="input-group">
+                <label style="width:120px;font-size:0.85rem;color:var(--text-muted);">Stock Price ($):</label>
+                <input type="number" id="size-price" class="input-field" value="150" style="flex:1;">
+            </div>
+            <div class="input-group">
+                <label style="width:120px;font-size:0.85rem;color:var(--text-muted);">ATR ($):</label>
+                <input type="number" id="size-atr" class="input-field" value="3.5" style="flex:1;">
+            </div>
+            <button class="btn btn-primary" onclick="calculateSizing()">Calculate Recommended Shares</button>
+            <div id="sizing-output" style="background:rgba(255,255,255,0.04);padding:12px;border-radius:10px;font-size:0.9rem;text-align:center;font-weight:600;"></div>
+        </div>
+    </div>
+</div>
 
-        function sendMessage() {
-            const userInput = document.getElementById('user-input');
-            const agentSelect = document.getElementById('agent-select');
-            const chatWindow = document.getElementById('chat-window');
-            const message = userInput.value.trim();
-            const agentId = agentSelect.value;
-            if (!message) return;
+<script>
+    // ---------- Global State ----------
+    let priceChart = null, rsiChart = null, macdChart = null, equityChart = null;
+    let commIndex = 0;
+    let currentAnalysisResult = null;
+    let currentSessionFilter = "";
+    let currentCategoryFilter = "";
+    let agentAvatars = {
+        'orchestrator': { avatar: '🤖', color: '#60a5fa' },
+        'market_agent': { avatar: '📊', color: '#38bdf8' },
+        'technical_agent': { avatar: '📈', color: '#c084fc' },
+        'fundamental_agent': { avatar: '🏦', color: '#fbbf24' },
+        'news_agent': { avatar: '📰', color: '#f472b6' },
+        'risk_agent': { avatar: '🛡️', color: '#fb7185' },
+        'portfolio_agent': { avatar: '💼', color: '#2dd4bf' },
+        'execution_agent': { avatar: '🎯', color: '#34d399' },
+        'user': { avatar: '👤', color: '#60a5fa' }
+    };
 
-            const userMessageDiv = document.createElement('div');
-            userMessageDiv.className = 'message user-message';
-            userMessageDiv.innerHTML = `<div class="message-bubble">${message}</div><div class="message-meta">You &bull; ${agentId}</div>`;
-            chatWindow.appendChild(userMessageDiv);
-            userInput.value = '';
-            chatWindow.scrollTop = chatWindow.scrollHeight;
+    // ---------- Modals & Tabs ----------
+    function openModal(id) { 
+        document.getElementById(id).style.display = 'flex'; 
+        if (id === 'diag-modal') fetchDiagnostics();
+    }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-            fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, agent_id: agentId }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                const agentMessageDiv = document.createElement('div');
-                agentMessageDiv.className = 'message agent-message';
-                agentMessageDiv.innerHTML = `<div class="message-bubble">${data.response}</div><div class="message-meta">${agentId}</div>`;
-                if (agentId === 'technical_agent' && data.technical_signals) {
-                    renderSignals(data.technical_signals, agentMessageDiv);
-                }
-                chatWindow.appendChild(agentMessageDiv);
-                chatWindow.scrollTop = chatWindow.scrollHeight;
-            })
-            .catch(() => {
-                const d = document.createElement('div');
-                d.className = 'message agent-message';
-                d.innerHTML = `<div class="message-bubble">Unable to reach the agent right now.</div><div class="message-meta">System</div>`;
-                chatWindow.appendChild(d);
-                chatWindow.scrollTop = chatWindow.scrollHeight;
-            });
-        }
+    function switchTab(name, btn) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        document.getElementById('tab-' + name).classList.add('active');
+    }
 
-        document.getElementById('user-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendMessage();
-        });
+    // ---------- Diagnostics Check ----------
+    function fetchDiagnostics() {
+        fetch('/api/diagnostics')
+        .then(r => r.json())
+        .then(data => {
+            const services = data.services || {};
+            
+            // Header Pills Update
+            const finn = services.finnhub || {};
+            const gem = services.gemini || {};
+            
+            const finnDot = document.getElementById('finnhub-dot');
+            if (finn.keys_configured) { finnDot.className = 'status-dot dot-green'; }
+            else { finnDot.className = 'status-dot dot-yellow'; }
 
-        // ---------- Multi-Agent Analysis ----------
-        function runAnalysis() {
-            const symbol = document.getElementById('analysis-symbol').value.trim().toUpperCase() || 'AAPL';
-            document.getElementById('analysis-results').style.display = 'none';
-            document.getElementById('analysis-loading').style.display = 'block';
+            const gemDot = document.getElementById('gemini-dot');
+            if (gem.keys_configured) { gemDot.className = 'status-dot dot-green'; }
+            else { gemDot.className = 'status-dot dot-yellow'; }
 
-            fetch('/api/analyze', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('analysis-loading').style.display = 'none';
-                renderAnalysis(data);
-            })
-            .catch(err => {
-                document.getElementById('analysis-loading').style.display = 'none';
-                alert('Analysis failed: ' + err);
-            });
-        }
+            // Modal Update
+            const body = document.getElementById('diag-modal-body');
+            body.innerHTML = '';
 
-        function renderAnalysis(data) {
-            const analyses = data.analyses || {};
-            const exec = analyses.execution || {};
-            const action = exec.action || 'hold';
-            const confidence = exec.confidence || 0;
-
-            document.getElementById('analysis-results').style.display = 'block';
-            const actionBadge = document.getElementById('analysis-action');
-            actionBadge.textContent = action.toUpperCase();
-            actionBadge.className = 'badge badge-' + action;
-            document.getElementById('analysis-confidence').textContent = `Confidence: ${(confidence * 100).toFixed(0)}%`;
-
-            const grid = document.getElementById('analysis-grid');
-            grid.innerHTML = '';
-
-            const tech = analyses.technical || {};
-            const techSignals = tech.signals || {};
-            grid.innerHTML += makeCard('Technical Agent', `
-                <div>RSI(14): ${fmt(techSignals.rsi_14)}</div>
-                <div>MACD: ${fmt(techSignals.macd)}</div>
-                <div>EMA20: ${fmt(techSignals.ema_20)}</div>
-                <div>Volume Trend: ${techSignals.volume_trend || 'neutral'}</div>
-            `);
-
-            const fund = analyses.fundamental || {};
-            const co = fund.data?.company || {};
-            grid.innerHTML += makeCard('Fundamental Agent', `
-                <div>PE Ratio: ${fmt(co.pe_ratio)}</div>
-                <div>EPS: ${fmt(co.eps)}</div>
-                <div>Market Cap: ${co.market_cap ? '$' + (co.market_cap).toLocaleString() + 'M' : 'N/A'}</div>
-                <div>Beta: ${fmt(co.beta)}</div>
-            `);
-
-            const news = analyses.news || {};
-            grid.innerHTML += makeCard('News Agent', `
-                <div>Sentiment: <span class="badge badge-${news.sentiment === 'positive' ? 'buy' : news.sentiment === 'negative' ? 'sell' : 'hold'}">${news.sentiment || 'neutral'}</span></div>
-                <div>Articles: ${(news.articles || []).length}</div>
-            `);
-
-            const risk = analyses.risk || {};
-            const checks = risk.checks || {};
-            grid.innerHTML += makeCard('Risk Agent', `
-                <div>Level: <span class="badge badge-${risk.risk_level || 'medium'}">${(risk.risk_level || 'medium').toUpperCase()}</span></div>
-                <div>ATR%: ${fmt(checks.atr_percent)}</div>
-                <div>${checks.rsi_warning || ''}</div>
-            `);
-
-            const port = analyses.portfolio || {};
-            const pos = port.position;
-            grid.innerHTML += makeCard('Portfolio Agent', `
-                <div>Position: ${pos ? pos.qty + ' shares @ $' + parseFloat(pos.avg_entry_price).toFixed(2) : 'None'}</div>
-                <div>Unrealized P&L: ${pos ? '$' + parseFloat(pos.unrealized_pl).toFixed(2) : 'N/A'}</div>
-            `);
-
-            grid.innerHTML += makeCard('Execution Agent', `
-                <div>Decision: <strong>${action.toUpperCase()}</strong></div>
-                <div>Reason: ${exec.reason || 'N/A'}</div>
-                <div>Raw Score: ${fmt(exec.raw_score)}</div>
-                <div class="trade-controls">
-                    <button class="btn btn-success btn-small" onclick="execTrade('${data.symbol}', 'buy')">Buy</button>
-                    <button class="btn btn-danger btn-small" onclick="execTrade('${data.symbol}', 'sell')">Sell</button>
-                </div>
-            `);
-        }
-
-        function makeCard(title, body) {
-            return `<div class="analysis-card"><h4>${title}</h4>${body}</div>`;
-        }
-        function fmt(v) {
-            if (v === undefined || v === null) return 'N/A';
-            if (typeof v === 'number') return v.toFixed(2);
-            return v;
-        }
-
-        function execTrade(symbol, side) {
-            const qty = prompt(`How many shares to ${side} for ${symbol}?`, "1");
-            if (!qty) return;
-            fetch('/api/execute', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol, side, qty: parseFloat(qty) }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                alert(data.status === 'submitted' ? `Order submitted! ID: ${data.order_id}` : `Error: ${data.error}`);
-                refreshAccount();
-            })
-            .catch(e => alert('Error: ' + e));
-        }
-
-        // ---------- Agent Communication Log (Polling) ----------
-        let commIndex = 0;
-        function pollMessages() {
-            fetch(`/api/messages?since=${commIndex}`)
-            .then(r => r.json())
-            .then(data => {
-                const log = document.getElementById('comm-log');
-                data.messages.forEach(m => {
-                    const entry = document.createElement('div');
-                    const fromClass = 'from-' + m.from.replace(/_/g, '-').replace(/[^a-z0-9-]/g, '');
-                    entry.className = `comm-entry ${fromClass}`;
-                    entry.innerHTML = `
-                        <div class="comm-header">
-                            <span class="comm-from">${m.from} &rarr; ${m.to}</span>
-                            <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
-                        </div>
-                        <div class="comm-msg">${m.message}</div>
-                    `;
-                    log.appendChild(entry);
-                });
-                if (data.messages.length > 0) {
-                    log.scrollTop = log.scrollHeight;
-                }
-                commIndex = data.next_index;
-            })
-            .catch(() => {})
-            .finally(() => setTimeout(pollMessages, 2000));
-        }
-        pollMessages();
-
-        // ---------- Account / Positions ----------
-        function refreshAccount() {
-            fetch('/api/account')
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('acc-cash').textContent = formatMoney(data.cash);
-                document.getElementById('acc-portfolio').textContent = formatMoney(data.portfolio_value);
-                document.getElementById('acc-bp').textContent = formatMoney(data.buying_power);
-                document.getElementById('acc-equity').textContent = formatMoney(data.equity);
-            })
-            .catch(() => {});
-
-            fetch('/api/positions')
-            .then(r => r.json())
-            .then(data => {
-                const container = document.getElementById('positions-container');
-                const positions = data.all_positions || [];
-                if (!positions.length) {
-                    container.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;">No open positions</div>';
-                    return;
-                }
-                let html = '<table class="positions-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Value</th><th>P&L</th></tr></thead><tbody>';
-                positions.forEach(p => {
-                    const pl = parseFloat(p.unrealized_pl || 0);
-                    const color = pl >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
-                    html += `<tr>
-                        <td><strong>${p.symbol}</strong></td>
-                        <td>${p.qty}</td>
-                        <td>${formatMoney(p.market_value)}</td>
-                        <td style="${color}">${pl >= 0 ? '+' : ''}${formatMoney(pl)}</td>
-                    </tr>`;
-                });
-                html += '</tbody></table>';
-                container.innerHTML = html;
-            })
-            .catch(() => {});
-        }
-        refreshAccount();
-        setInterval(refreshAccount, 30000);
-
-        // ---------- Trade History ----------
-        function loadHistory() {
-            fetch('/api/history?limit=50')
-            .then(r => r.json())
-            .then(data => {
-                const tbody = document.querySelector('#history-table tbody');
-                tbody.innerHTML = '';
-                if (!data.length) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">No history yet</td></tr>';
-                    return;
-                }
-                data.forEach(h => {
-                    const tr = document.createElement('tr');
-                    const time = new Date(h.recorded_at).toLocaleString();
-                    const type = h.type || 'unknown';
-                    const symbol = h.symbol || '-';
-                    const side = h.side || h.action || '-';
-                    const conf = h.confidence !== undefined ? (h.confidence * 100).toFixed(0) + '%' : '-';
-                    const reason = (h.reason || '').substring(0, 60);
-                    const typeBadge = type === 'order' ? '<span class="badge badge-buy">ORDER</span>' : '<span class="badge badge-hold">ANALYSIS</span>';
-                    tr.innerHTML = `<td>${time}</td><td>${typeBadge}</td><td><strong>${symbol}</strong></td><td>${side.toUpperCase()}</td><td>${conf}</td><td>${reason}</td>`;
-                    tbody.appendChild(tr);
-                });
-            })
-            .catch(() => {});
-
-            fetch('/api/history/stats')
-            .then(r => r.json())
-            .then(stats => {
-                document.getElementById('history-stats').innerHTML = `
-                    Total orders: <strong>${stats.total_orders || 0}</strong> &bull;
-                    Buy orders: <strong>${stats.buy_orders || 0}</strong> &bull;
-                    Sell orders: <strong>${stats.sell_orders || 0}</strong> &bull;
-                    Total analyses: <strong>${stats.total_analyses || 0}</strong>
+            Object.entries(services).forEach(([key, svc]) => {
+                const isOk = svc.keys_configured;
+                const statusColor = isOk ? '#34d399' : '#fbbf24';
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <strong style="font-size:1rem;color:#e5e7eb;">${svc.name}</strong>
+                        <span class="category-tag" style="background:${isOk ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)'};color:${statusColor};">
+                            ${isOk ? '🟢 CONNECTED' : '🟡 FALLBACK ACTIVE'}
+                        </span>
+                    </div>
+                    <div style="font-size:0.82rem;color:var(--text-muted);">${svc.note || svc.mode || ''}</div>
                 `;
-            })
-            .catch(() => {});
-        }
-
-        document.querySelector('.tab[onclick="switchTab(\'history\')"]').addEventListener('click', loadHistory);
-
-        // ---------- Screener ----------
-        function runScreener() {
-            const container = document.getElementById('screener-results');
-            container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">Scanning...</div>';
-            fetch('/api/screen', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ top_n: 8 }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                const candidates = data.candidates || [];
-                if (!candidates.length) {
-                    container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">No candidates found.</div>';
-                    return;
-                }
-                let html = '<div class="screener-grid">';
-                candidates.forEach(c => {
-                    html += `
-                        <div class="screener-card">
-                            <div class="sym">${c.symbol}</div>
-                            <div class="score">Score: ${c.score.toFixed(1)} | $${c.price?.toFixed(2) || '?'}</div>
-                            <div style="font-size:0.75rem;color:var(--muted);margin-top:4px;">${c.change_percent?.toFixed(1) || 0}% | RSI ${c.rsi?.toFixed(0) || '?'}</div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-                container.innerHTML = html;
-            })
-            .catch(() => {
-                container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;">Screener failed.</div>';
+                body.appendChild(card);
             });
-        }
+        });
+    }
+    fetchDiagnostics();
 
-        // ---------- Backtest ----------
-        function runBacktest() {
-            const symbol = document.getElementById('backtest-symbol').value.trim().toUpperCase() || 'AAPL';
-            const days = parseInt(document.getElementById('backtest-days').value) || 252;
-            const cash = parseFloat(document.getElementById('backtest-cash').value) || 10000;
+    // ---------- Account & Positions ----------
+    function fmtMoney(v) { return (v === undefined || v === null || isNaN(v)) ? '$0.00' : '$' + parseFloat(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}); }
+    function fmtNum(v, dec=2) { return (v === undefined || v === null || isNaN(v)) ? 'N/A' : parseFloat(v).toFixed(dec); }
 
-            document.getElementById('backtest-results').style.display = 'none';
-            document.getElementById('backtest-loading').style.display = 'block';
+    function refreshAccount() {
+        fetch('/api/account').then(r => r.json()).then(data => {
+            if (data.cash !== undefined) {
+                document.getElementById('acc-cash').textContent = fmtMoney(data.cash);
+                document.getElementById('acc-portfolio').textContent = fmtMoney(data.portfolio_value);
+                document.getElementById('acc-bp').textContent = fmtMoney(data.buying_power);
+                document.getElementById('acc-equity').textContent = fmtMoney(data.equity);
+            }
+        }).catch(() => {});
 
-            fetch('/api/backtest', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol, days, initial_cash: cash }),
-            })
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('backtest-loading').style.display = 'none';
-                if (data.status === 'error') {
-                    alert('Backtest error: ' + data.error);
-                    return;
-                }
-                renderBacktest(data);
-            })
-            .catch(err => {
-                document.getElementById('backtest-loading').style.display = 'none';
-                alert('Backtest failed: ' + err);
-            });
-        }
-
-        function renderBacktest(data) {
-            document.getElementById('backtest-results').style.display = 'block';
-
-            const stats = document.getElementById('backtest-stats');
-            const totalColor = data.total_return_pct >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
-            stats.innerHTML = `
-                <div class="backtest-stat"><div class="label">Total Return</div><div class="value" style="${totalColor}">${data.total_return_pct?.toFixed(1) || 0}%</div></div>
-                <div class="backtest-stat"><div class="label">Total P&L</div><div class="value">$${data.total_pnl?.toLocaleString() || 0}</div></div>
-                <div class="backtest-stat"><div class="label">Trades</div><div class="value">${data.total_trades || 0}</div></div>
-                <div class="backtest-stat"><div class="label">Win Rate</div><div class="value">${data.win_rate || 0}%</div></div>
-                <div class="backtest-stat"><div class="label">Sharpe</div><div class="value">${data.sharpe_ratio || 0}</div></div>
-                <div class="backtest-stat"><div class="label">Max DD</div><div class="value" style="color:#f87171;">${data.max_drawdown_pct || 0}%</div></div>
-                <div class="backtest-stat"><div class="label">Profit Factor</div><div class="value">${data.profit_factor || 0}</div></div>
-                <div class="backtest-stat"><div class="label">Avg Trade</div><div class="value">$${data.avg_trade_pnl || 0}</div></div>
-            `;
-
-            const tbody = document.querySelector('#backtest-trades tbody');
-            tbody.innerHTML = '';
-            const trades = data.trades || [];
-            if (!trades.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:16px;">No trades</td></tr>';
+        fetch('/api/positions').then(r => r.json()).then(data => {
+            const container = document.getElementById('positions-container');
+            const positions = data.all_positions || [];
+            if (!positions.length) {
+                container.innerHTML = '<div style="color:var(--text-muted);">No open positions</div>';
                 return;
             }
-            trades.forEach(t => {
-                const plColor = t.pnl >= 0 ? 'color:#4ade80;' : 'color:#f87171;';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${t.entry_date}</td>
-                    <td>${t.exit_date || '-'}</td>
-                    <td>${t.side.toUpperCase()}</td>
-                    <td>$${t.entry_price}</td>
-                    <td>$${t.exit_price}</td>
-                    <td style="${plColor}">$${t.pnl} (${t.pnl_pct}%)</td>
-                `;
-                tbody.appendChild(tr);
+            let html = '<table class="custom-table"><thead><tr><th>Symbol</th><th>Qty</th><th>Avg $</th><th>P&L</th></tr></thead><tbody>';
+            positions.forEach(p => {
+                const pnl = parseFloat(p.unrealized_pl || 0);
+                const pnlColor = pnl >= 0 ? '#34d399' : '#fb7185';
+                html += `<tr><td><strong>${p.symbol}</strong></td><td>${p.qty}</td><td>${fmtMoney(p.avg_entry_price)}</td><td style="color:${pnlColor};">${fmtMoney(pnl)}</td></tr>`;
             });
-        }
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }).catch(() => {});
+    }
+    refreshAccount();
 
-        // ---------- Autonomous ----------
-        function startAutonomous() {
-            const symbols = prompt('Symbols to watch (comma-separated):', 'AAPL,TSLA,GOOGL');
-            if (!symbols) return;
-            fetch('/api/autonomous/start', {
+    // ---------- Autonomous Loop Controls ----------
+    function startAutonomous() {
+        const symbols = prompt("Enter symbols to auto-trade (comma separated):", "AAPL, TSLA, GOOGL");
+        if (!symbols) return;
+        const symbolList = symbols.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        fetch('/api/autonomous/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbols: symbolList, interval_seconds: 180 })
+        }).then(r => r.json()).then(d => {
+            document.getElementById('autonomous-status').textContent = 'Running loop for ' + symbolList.join(', ');
+            document.getElementById('autonomous-status').style.color = '#34d399';
+        });
+    }
+
+    function stopAutonomous() {
+        fetch('/api/autonomous/stop', { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            document.getElementById('autonomous-status').textContent = 'Status: Stopped';
+            document.getElementById('autonomous-status').style.color = 'var(--text-muted)';
+        });
+    }
+
+    // ---------- Analysis Pipeline ----------
+    function runAnalysis() {
+        const symbol = document.getElementById('analysis-symbol').value.trim().toUpperCase() || 'AAPL';
+        const timeframeMode = document.getElementById('analysis-timeframe').value;
+        const endpoint = timeframeMode === 'multi' ? '/api/multiframe' : '/api/analyze';
+
+        document.getElementById('analysis-results').style.display = 'none';
+        document.getElementById('analysis-loading').style.display = 'block';
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol })
+        })
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('analysis-loading').style.display = 'none';
+            currentAnalysisResult = data;
+            renderAnalysisView(data);
+            loadFinancialCharts(symbol);
+            fetchSessions();
+        })
+        .catch(err => {
+            document.getElementById('analysis-loading').style.display = 'none';
+            alert('Analysis failed: ' + err);
+        });
+    }
+
+    function renderAnalysisView(data) {
+        document.getElementById('analysis-results').style.display = 'flex';
+        const analyses = data.analyses || {};
+        const exec = analyses.execution || {};
+        const reasoning = exec.detailed_reasoning || {};
+
+        const action = (exec.action || 'hold').toLowerCase();
+        const conf = (exec.confidence || 0) * 100;
+
+        const badge = document.getElementById('decision-badge');
+        badge.textContent = action.toUpperCase();
+        badge.className = 'badge-large badge-' + action;
+
+        document.getElementById('decision-ticker').textContent = `${data.symbol} Multi-Agent Decision`;
+        document.getElementById('decision-timestamp').textContent = `Session: ${data.session_id || 'Manual Run'} @ ${new Date(data.timestamp || Date.now()).toLocaleTimeString()}`;
+
+        document.getElementById('metric-confidence').textContent = conf.toFixed(0) + '%';
+        document.getElementById('metric-combined').textContent = fmtNum(exec.raw_score);
+        document.getElementById('metric-agent').textContent = fmtNum(exec.agent_score);
+        document.getElementById('metric-strat').textContent = fmtNum(exec.strategy_score);
+
+        document.getElementById('reasoning-executive').textContent = reasoning.executive_summary || exec.reason || 'Decision computed.';
+
+        const bullList = document.getElementById('bullish-list');
+        bullList.innerHTML = (reasoning.bullish_arguments || []).map(a => `<li>${a}</li>`).join('') || '<li>No major bullish factors</li>';
+
+        const bearList = document.getElementById('bearish-list');
+        bearList.innerHTML = (reasoning.bearish_arguments || []).map(a => `<li>${a}</li>`).join('') || '<li>No major bearish threats</li>';
+
+        document.getElementById('risk-summary-text').textContent = reasoning.risk_assessment || 'Medium risk';
+        document.getElementById('strat-summary-text').textContent = reasoning.strategy_summary || '5 Strategies voted';
+
+        // 5 Strategy Cards
+        const stratGrid = document.getElementById('strategies-grid');
+        stratGrid.innerHTML = '';
+        (exec.strategy_votes || []).forEach(v => {
+            const dec = (v.decision || 'hold').toLowerCase();
+            const card = document.createElement('div');
+            card.className = 'strategy-card';
+            card.innerHTML = `
+                <div class="strategy-header">
+                    <span class="strategy-name">${v.strategy || v.name || 'Strategy'}</span>
+                    <span class="status-pill badge-${dec}" style="padding:2px 8px;font-size:0.75rem;">${dec.toUpperCase()}</span>
+                </div>
+                <div style="font-size:0.8rem;color:var(--text-muted);display:flex;justify-content:space-between;">
+                    <span>Confidence: ${(v.confidence * 100).toFixed(0)}%</span>
+                    <span>Score: ${fmtNum(v.raw_score)}</span>
+                </div>
+                <div class="strategy-reason">${v.reason || 'No strategy notes'}</div>
+            `;
+            stratGrid.appendChild(card);
+        });
+
+        // 6 Agent Cards
+        const agentsGrid = document.getElementById('agents-grid');
+        agentsGrid.innerHTML = '';
+
+        const mkt = analyses.market?.metrics || {};
+        agentsGrid.appendChild(createAgentCard('Market Data Agent', `
+            <div class="stat-row"><span>Spread:</span><strong>${fmtNum(mkt.spread)}</strong></div>
+            <div class="stat-row"><span>Rel Volume:</span><strong>${fmtNum(mkt.relative_volume)}x</strong></div>
+            <div class="stat-row"><span>Gap %:</span><strong>${fmtNum(mkt.gap_percent)}%</strong></div>
+        `));
+
+        const tech = analyses.technical?.signals || {};
+        agentsGrid.appendChild(createAgentCard('Technical Analyst', `
+            <div class="stat-row"><span>RSI (14):</span><strong>${fmtNum(tech.rsi_14)}</strong></div>
+            <div class="stat-row"><span>MACD:</span><strong>${fmtNum(tech.macd)}</strong></div>
+            <div class="stat-row"><span>EMA 20:</span><strong>${fmtNum(tech.ema_20)}</strong></div>
+            <div class="stat-row"><span>ATR (14):</span><strong>${fmtNum(tech.atr_14)}</strong></div>
+        `));
+
+        const fund = analyses.fundamental?.data?.company || {};
+        agentsGrid.appendChild(createAgentCard('Fundamental Agent', `
+            <div class="stat-row"><span>P/E Ratio:</span><strong>${fmtNum(fund.pe_ratio)}</strong></div>
+            <div class="stat-row"><span>EPS:</span><strong>${fmtNum(fund.eps)}</strong></div>
+            <div class="stat-row"><span>Beta:</span><strong>${fmtNum(fund.beta)}</strong></div>
+            <div class="stat-row"><span>Market Cap:</span><strong>${fund.market_cap ? '$' + Math.round(fund.market_cap).toLocaleString() + 'M' : 'N/A'}</strong></div>
+        `));
+
+        const news = analyses.news || {};
+        agentsGrid.appendChild(createAgentCard('News & Sentiment Agent', `
+            <div class="stat-row"><span>Sentiment:</span><strong style="text-transform:uppercase;">${news.sentiment || 'neutral'}</strong></div>
+            <div class="stat-row"><span>Articles Scanned:</span><strong>${(news.articles || []).length}</strong></div>
+        `));
+
+        const risk = analyses.risk || {};
+        agentsGrid.appendChild(createAgentCard('Risk Evaluator', `
+            <div class="stat-row"><span>Risk Level:</span><strong style="text-transform:uppercase;color:${risk.risk_level === 'high' ? '#fb7185' : '#34d399'};">${risk.risk_level || 'medium'}</strong></div>
+            <div class="stat-row"><span>ATR Volatility %:</span><strong>${fmtNum(risk.checks?.atr_percent)}%</strong></div>
+        `));
+
+        const port = analyses.portfolio?.position || {};
+        agentsGrid.appendChild(createAgentCard('Portfolio Tracker', `
+            <div class="stat-row"><span>Current Position:</span><strong>${port.qty ? port.qty + ' shares' : 'Flat (0)'}</strong></div>
+            <div class="stat-row"><span>Unrealized P&L:</span><strong>${port.unrealized_pl ? fmtMoney(port.unrealized_pl) : '$0.00'}</strong></div>
+        `));
+    }
+
+    function createAgentCard(title, bodyHtml) {
+        const card = document.createElement('div');
+        card.className = 'agent-card';
+        card.innerHTML = `<h4>${title}</h4>${bodyHtml}`;
+        return card;
+    }
+
+    // ---------- Financial Charts ----------
+    function loadFinancialCharts(symbol) {
+        fetch('/api/chart_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, days: 90 })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'ok') return;
+            const labels = d.dates;
+
+            const ctxPrice = document.getElementById('priceChart').getContext('2d');
+            if (priceChart) priceChart.destroy();
+            priceChart = new Chart(ctxPrice, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Close Price', data: d.close, borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0 },
+                        { label: 'EMA (20)', data: d.ema20, borderColor: '#10b981', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'EMA (50)', data: d.ema50, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'Bollinger Upper', data: d.bollinger_upper, borderColor: 'rgba(139, 92, 246, 0.5)', borderWidth: 1, borderDash: [4, 4], pointRadius: 0 },
+                        { label: 'Bollinger Lower', data: d.bollinger_lower, borderColor: 'rgba(139, 92, 246, 0.5)', borderWidth: 1, borderDash: [4, 4], pointRadius: 0 },
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#9ca3af', font: { family: 'Inter', size: 11 } } } }, scales: { x: { ticks: { color: '#6b7280', maxTicksLimit: 12 } }, y: { ticks: { color: '#6b7280' } } } }
+            });
+
+            const ctxRsi = document.getElementById('rsiChart').getContext('2d');
+            if (rsiChart) rsiChart.destroy();
+            rsiChart = new Chart(ctxRsi, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'RSI (14)', data: d.rsi, borderColor: '#a78bfa', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'Overbought (70)', data: labels.map(() => 70), borderColor: '#f43f5e', borderWidth: 1, borderDash: [2, 2], pointRadius: 0 },
+                        { label: 'Oversold (30)', data: labels.map(() => 30), borderColor: '#34d399', borderWidth: 1, borderDash: [2, 2], pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { min: 0, max: 100, ticks: { color: '#6b7280' } } } }
+            });
+
+            const ctxMacd = document.getElementById('macdChart').getContext('2d');
+            if (macdChart) macdChart.destroy();
+            macdChart = new Chart(ctxMacd, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { type: 'line', label: 'MACD', data: d.macd, borderColor: '#60a5fa', borderWidth: 1.5, pointRadius: 0 },
+                        { type: 'line', label: 'Signal', data: d.macd_signal, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0 },
+                        { label: 'Histogram', data: d.macd_hist, backgroundColor: d.macd_hist.map(v => v >= 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)') }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { ticks: { color: '#6b7280' } } } }
+            });
+        }).catch(() => {});
+    }
+
+    // ---------- Group Chat Workspace ----------
+    function fetchSessions() {
+        fetch('/api/sessions')
+        .then(r => r.json())
+        .then(data => {
+            const select = document.getElementById('chat-session-select');
+            select.innerHTML = '<option value="">Live Feed (All Runs)</option>';
+            (data.sessions || []).reverse().forEach(s => {
+                const timeStr = new Date(s.timestamp || Date.now()).toLocaleTimeString();
+                select.innerHTML += `<option value="${s.session_id}">${s.symbol} Run @ ${timeStr} (${s.session_id})</option>`;
+            });
+        });
+    }
+    fetchSessions();
+
+    function filterChatBySession() {
+        currentSessionFilter = document.getElementById('chat-session-select').value;
+        renderGroupChatFeed(true);
+    }
+
+    function filterChatCategory(cat) {
+        currentCategoryFilter = cat;
+        renderGroupChatFeed(true);
+    }
+
+    function clearGroupChat() {
+        document.getElementById('group-chat-stream').innerHTML = '';
+    }
+
+    function renderGroupChatFeed(reset=false) {
+        const stream = document.getElementById('group-chat-stream');
+        if (reset) stream.innerHTML = '';
+
+        let url = `/api/messages?since=0`;
+        if (currentSessionFilter) url += `&session_id=${currentSessionFilter}`;
+        if (currentCategoryFilter) url += `&category=${currentCategoryFilter}`;
+
+        fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            stream.innerHTML = '';
+            (data.messages || []).forEach(m => {
+                const fromKey = (m.from || 'orchestrator').toLowerCase();
+                const avMeta = agentAvatars[fromKey] || { avatar: '🤖', color: '#60a5fa' };
+                const timeStr = new Date(m.timestamp || Date.now()).toLocaleTimeString();
+                
+                let catTag = 'tag-dialogue';
+                let catLabel = m.category || 'DIALOGUE';
+                if (m.category === 'api_diagnostic') { catTag = m.status_code === 'warning' ? 'tag-warning' : 'tag-api'; }
+                else if (m.category === 'decision_monologue') { catTag = 'tag-monologue'; }
+
+                const row = document.createElement('div');
+                row.className = 'chat-message-row';
+                row.innerHTML = `
+                    <div class="agent-avatar" style="border-color:${avMeta.color};">${avMeta.avatar}</div>
+                    <div class="chat-bubble-box">
+                        <div class="chat-bubble-meta">
+                            <div>
+                                <span class="agent-title" style="color:${avMeta.color};">${m.from}</span>
+                                <span class="target-arrow"> &rarr; ${m.to}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <span class="category-tag ${catTag}">${catLabel.replace('_', ' ')}</span>
+                                <span style="color:var(--text-dim);font-size:0.75rem;">${timeStr}</span>
+                            </div>
+                        </div>
+                        <div class="chat-bubble-text">${m.message}</div>
+                    </div>
+                `;
+                stream.appendChild(row);
+            });
+            stream.scrollTop = stream.scrollHeight;
+        });
+    }
+
+    // ---------- Smart Sizing Modal ----------
+    function openSizingModal() { openModal('sizing-modal'); }
+
+    function calculateSizing() {
+        const method = document.getElementById('size-method').value;
+        const equity = parseFloat(document.getElementById('size-equity').value);
+        const price = parseFloat(document.getElementById('size-price').value);
+        const atr = parseFloat(document.getElementById('size-atr').value);
+
+        fetch('/api/sizing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ equity, price, atr, method })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'ok') {
+                document.getElementById('sizing-output').innerHTML = `
+                    <div style="color:#34d399;font-size:1.1rem;">Recommended Allocation: ${d.shares} shares (${fmtMoney(d.notional)})</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">Calculated using ${d.method} algorithm.</div>
+                `;
+            } else {
+                document.getElementById('sizing-output').textContent = 'Error: ' + (d.error || d.reason || 'Calculation failed');
+            }
+        });
+    }
+
+    function execTradeFromBanner(side) {
+        if (!currentAnalysisResult) return;
+        const symbol = currentAnalysisResult.symbol;
+        const qty = prompt(`Enter number of shares to ${side.toUpperCase()} for ${symbol}:`, "5");
+        if (!qty) return;
+
+        fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, side, qty: parseFloat(qty) })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.status === 'submitted') {
+                alert(`Order Submitted Successfully!\nOrder ID: ${d.order_id}\n${side.toUpperCase()} ${d.qty} ${symbol}`);
+                refreshAccount();
+            } else {
+                alert(`Order Error: ${d.error}`);
+            }
+        });
+    }
+
+    // ---------- Agent Direct Chat ----------
+    function sendChatMessage() {
+        const input = document.getElementById('chat-input');
+        const select = document.getElementById('agent-chat-select');
+        const windowDiv = document.getElementById('chat-window');
+
+        const message = input.value.trim();
+        const agentId = select.value;
+        if (!message) return;
+
+        const userMsg = document.createElement('div');
+        userMsg.style.alignSelf = 'flex-end';
+        userMsg.style.background = 'var(--primary)';
+        userMsg.style.color = 'white';
+        userMsg.style.padding = '8px 14px';
+        userMsg.style.borderRadius = '12px';
+        userMsg.style.fontSize = '0.88rem';
+        userMsg.style.maxWidth = '80%';
+        userMsg.textContent = message;
+        windowDiv.appendChild(userMsg);
+
+        input.value = '';
+        windowDiv.scrollTop = windowDiv.scrollHeight;
+
+        fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, agent_id: agentId })
+        })
+        .then(r => r.json())
+        .then(data => {
+            const agentMsg = document.createElement('div');
+            agentMsg.style.alignSelf = 'flex-start';
+            agentMsg.style.background = 'rgba(255,255,255,0.08)';
+            agentMsg.style.padding = '8px 14px';
+            agentMsg.style.borderRadius = '12px';
+            agentMsg.style.fontSize = '0.88rem';
+            agentMsg.style.maxWidth = '80%';
+            agentMsg.innerHTML = `<div style="font-weight:600;font-size:0.75rem;color:#60a5fa;margin-bottom:4px;">${agentId}</div>${data.response}`;
+            windowDiv.appendChild(agentMsg);
+            windowDiv.scrollTop = windowDiv.scrollHeight;
+        });
+    }
+
+    // ---------- Screener ----------
+    function runScreener() {
+        const container = document.getElementById('screener-grid');
+        container.innerHTML = '<div style="color:var(--text-muted);">Scanning market watchlist...</div>';
+
+        fetch('/api/screen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ top_n: 8 })
+        })
+        .then(r => r.json())
+        .then(d => {
+            const candidates = d.top_candidates || d.results || [];
+            if (!candidates.length) {
+                container.innerHTML = '<div style="color:var(--text-muted);">No candidates met screening thresholds.</div>';
+                return;
+            }
+            container.innerHTML = '';
+            candidates.forEach(c => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="font-size:1.1rem;font-weight:700;color:#60a5fa;">${c.symbol}</div>
+                    <div style="font-size:0.8rem;color:var(--text-muted);margin:4px 0;">Score: ${fmtNum(c.score)}</div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:8px;">${c.reasons?.join(', ') || 'High momentum'}</div>
+                    <button class="btn btn-primary btn-small" style="width:100%;" onclick="quickAnalyze('${c.symbol}')">Analyze Candidate</button>
+                `;
+                container.appendChild(card);
+            });
+        });
+    }
+
+    function quickAnalyze(symbol) {
+        document.getElementById('analysis-symbol').value = symbol;
+        switchTab('analysis', document.querySelectorAll('.tab-btn')[0]);
+        runAnalysis();
+    }
+
+    // ---------- Backtest Simulator ----------
+    function runBacktest() {
+        const symbol = document.getElementById('bt-symbol').value.toUpperCase();
+        const days = parseInt(document.getElementById('bt-days').value);
+        const cash = parseFloat(document.getElementById('bt-cash').value);
+
+        fetch('/api/backtest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol, days, initial_cash: cash })
+        })
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('bt-results').style.display = 'flex';
+            const stats = d.summary || d.stats || d;
+
+            const statsGrid = document.getElementById('bt-stats-grid');
+            statsGrid.innerHTML = `
+                <div class="card" style="text-align:center;"><div style="font-size:0.75rem;color:var(--text-muted);">TOTAL RETURN</div><div style="font-size:1.2rem;font-weight:700;color:${stats.total_return_pct >= 0 ? '#34d399' : '#fb7185'};">${fmtNum(stats.total_return_pct)}%</div></div>
+                <div class="card" style="text-align:center;"><div style="font-size:0.75rem;color:var(--text-muted);">WIN RATE</div><div style="font-size:1.2rem;font-weight:700;">${fmtNum(stats.win_rate_pct)}%</div></div>
+                <div class="card" style="text-align:center;"><div style="font-size:0.75rem;color:var(--text-muted);">PROFIT FACTOR</div><div style="font-size:1.2rem;font-weight:700;">${fmtNum(stats.profit_factor)}</div></div>
+                <div class="card" style="text-align:center;"><div style="font-size:0.75rem;color:var(--text-muted);">MAX DRAWDOWN</div><div style="font-size:1.2rem;font-weight:700;color:#fb7185;">${fmtNum(stats.max_drawdown_pct)}%</div></div>
+                <div class="card" style="text-align:center;"><div style="font-size:0.75rem;color:var(--text-muted);">SHARPE RATIO</div><div style="font-size:1.2rem;font-weight:700;">${fmtNum(stats.sharpe_ratio)}</div></div>
+            `;
+
+            const curve = d.equity_curve || [];
+            if (curve.length) {
+                const ctxEq = document.getElementById('equityChart').getContext('2d');
+                if (equityChart) equityChart.destroy();
+                equityChart = new Chart(ctxEq, {
+                    type: 'line',
+                    data: {
+                        labels: curve.map((_, i) => `Day ${i+1}`),
+                        datasets: [{ label: 'Portfolio Equity ($)', data: curve, borderColor: '#10b981', borderWidth: 2, pointRadius: 0 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+
+            const tbody = document.querySelector('#bt-trades-table tbody');
+            tbody.innerHTML = '';
+            (d.trades || []).forEach(t => {
+                const pnl = parseFloat(t.pnl || 0);
+                tbody.innerHTML += `<tr>
+                    <td>${t.entry_date || 'N/A'}</td>
+                    <td>${t.exit_date || 'N/A'}</td>
+                    <td style="text-transform:uppercase;">${t.side || 'buy'}</td>
+                    <td>${fmtMoney(t.entry_price)}</td>
+                    <td>${fmtMoney(t.exit_price)}</td>
+                    <td style="color:${pnl >= 0 ? '#34d399' : '#fb7185'};">${fmtMoney(pnl)}</td>
+                </tr>`;
+            });
+        });
+    }
+
+    // ---------- Reflections & Reports ----------
+    function generateReflection() {
+        fetch('/api/history?limit=20')
+        .then(r => r.json())
+        .then(history => {
+            fetch('/api/reflection', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbols: symbols.split(',').map(s => s.trim().toUpperCase()), interval_seconds: 300 }),
+                body: JSON.stringify({ trades: history })
             })
             .then(r => r.json())
-            .then(() => {
-                document.getElementById('autonomous-status').textContent = 'Running';
-                document.getElementById('status-pill').textContent = 'Autonomous Mode';
-            })
-            .catch(() => alert('Failed to start'));
-        }
-        function stopAutonomous() {
-            fetch('/api/autonomous/stop', { method: 'POST' })
-            .then(() => {
-                document.getElementById('autonomous-status').textContent = 'Stopped';
-                document.getElementById('status-pill').textContent = 'Paper Trading Live';
-            })
-            .catch(() => alert('Failed to stop'));
-        }
-    </script>
+            .then(d => {
+                document.getElementById('reflection-output').textContent = d.reflection || 'No reflection insights available.';
+            });
+        });
+    }
+
+    function loadDailyReport() {
+        fetch('/api/report/daily')
+        .then(r => r.json())
+        .then(d => {
+            document.getElementById('daily-report-output').innerHTML = `
+                <div style="display:flex;gap:20px;">
+                    <div>Analyses Run Today: <strong>${d.total_analyses || 0}</strong></div>
+                    <div>Orders Submitted Today: <strong>${d.total_orders || 0}</strong></div>
+                    <div>Win Rate Estimate: <strong>${fmtNum(d.estimated_win_rate)}%</strong></div>
+                </div>
+            `;
+        });
+    }
+
+    // ---------- Semantic Vector Search ----------
+    function runVectorSearch() {
+        const query = document.getElementById('search-query').value.trim();
+        if (!query) return;
+
+        fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, top_k: 5 })
+        })
+        .then(r => r.json())
+        .then(d => {
+            const container = document.getElementById('search-results');
+            container.innerHTML = '';
+            (d.results || []).forEach(res => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                        <strong style="color:#60a5fa;">${res.symbol || 'Note'}</strong>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">Similarity Score: ${fmtNum(res.score)}</span>
+                    </div>
+                    <div style="font-size:0.85rem;color:var(--text-main);">${res.text || res.reason || ''}</div>
+                `;
+                container.appendChild(card);
+            });
+        });
+    }
+
+    // ---------- History Ledger ----------
+    function loadHistory() {
+        fetch('/api/history?limit=50')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = document.querySelector('#history-table tbody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const timeStr = new Date(item.timestamp || Date.now()).toLocaleTimeString();
+                const type = item.type || (item.order_id ? 'order' : 'analysis');
+                const action = (item.action || item.side || 'hold').toLowerCase();
+                const conf = item.confidence ? (item.confidence * 100).toFixed(0) + '%' : 'N/A';
+
+                tbody.innerHTML += `<tr>
+                    <td>${timeStr}</td>
+                    <td><span class="status-pill" style="padding:2px 8px;font-size:0.75rem;">${type.toUpperCase()}</span></td>
+                    <td><strong>${item.symbol || 'N/A'}</strong></td>
+                    <td><span class="status-pill badge-${action}" style="padding:2px 8px;font-size:0.75rem;">${action.toUpperCase()}</span></td>
+                    <td>${conf}</td>
+                    <td style="font-size:0.8rem;color:var(--text-muted);">${item.reason || 'N/A'}</td>
+                </tr>`;
+            });
+        });
+
+        fetch('/api/history/stats')
+        .then(r => r.json())
+        .then(stats => {
+            document.getElementById('history-stats-bar').textContent = 
+                `Total Recorded Entries: ${stats.total_entries || 0} | Buy Orders: ${stats.buy_orders || 0} | Sell Orders: ${stats.sell_orders || 0} | Total Analyses: ${stats.total_analyses || 0}`;
+        });
+    }
+    loadHistory();
+
+    // ---------- Real-Time Telemetry Polling ----------
+    function pollMessages() {
+        fetch(`/api/messages?since=${commIndex}`)
+        .then(r => r.json())
+        .then(data => {
+            const log = document.getElementById('comm-log');
+            (data.messages || []).forEach(m => {
+                const entry = document.createElement('div');
+                const fromClass = 'from-' + (m.from || '').replace(/_/g, '-').toLowerCase();
+                entry.className = `comm-entry ${fromClass}`;
+                entry.innerHTML = `
+                    <div class="comm-header">
+                        <span><strong>${m.from}</strong> &rarr; ${m.to}</span>
+                        <span>${new Date(m.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="comm-msg">${m.message}</div>
+                `;
+                log.appendChild(entry);
+            });
+            if (data.messages && data.messages.length > 0) {
+                log.scrollTop = log.scrollHeight;
+                renderGroupChatFeed(false);
+            }
+            commIndex = data.next_index;
+        })
+        .catch(() => {})
+        .finally(() => setTimeout(pollMessages, 2000));
+    }
+    pollMessages();
+
+    function clearCommLog() { document.getElementById('comm-log').innerHTML = ''; }
+</script>
+
 </body>
 </html>
