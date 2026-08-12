@@ -2967,5 +2967,460 @@
       }
     },
     "recorded_at": "2026-08-12T03:59:07.978634"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.4295000000000001,
+    "reason": "RSI oversold (20.0); MACD bullish crossover; Price above EMA50 (uptrend); Volume confirms upside; Fundamentals look good; Positive news sentiment; High risk - reducing position size and conviction",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        }
+      ],
+      "agent_score": 1.575,
+      "ensemble": {
+        "weighted_score": 1.0,
+        "weighted_confidence": 1.0,
+        "breakdown": [
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-12T04:13:00.350165"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.82,
+          "reason": "Positive news; Already long \u2014 reducing add-on",
+          "raw_score": 0.21,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.82,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-12T04:14:57.718197"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.82,
+          "reason": "Positive news; Already long \u2014 reducing add-on",
+          "raw_score": 0.21,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.82,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-12T04:15:16.751574"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.4295000000000001,
+    "reason": "RSI oversold (20.0); MACD bullish crossover; Price above EMA50 (uptrend); Volume confirms upside; Fundamentals look good; Positive news sentiment; High risk - reducing position size and conviction",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        },
+        {
+          "strategy": "dummy",
+          "decision": "buy",
+          "confidence": 1.0,
+          "name": "dummy"
+        }
+      ],
+      "agent_score": 1.575,
+      "ensemble": {
+        "weighted_score": 1.0,
+        "weighted_confidence": 1.0,
+        "breakdown": [
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          },
+          {
+            "strategy": "dummy",
+            "decision": "buy",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.2
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-12T04:28:35.380255"
+  },
+  {
+    "type": "analysis",
+    "symbol": "GOOGL",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.82,
+          "reason": "Positive news; Already long \u2014 reducing add-on",
+          "raw_score": 0.21,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.82,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-12T04:30:33.175651"
   }
 ]

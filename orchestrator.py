@@ -160,10 +160,15 @@ class Orchestrator:
                 last_price = snapshot.trade.price
                 rel_vol = snapshot.metrics.get("relative_volume", 1.0)
                 spread = snapshot.metrics.get("spread", 0.0)
+
+                price_str = f"${last_price:.2f}" if last_price is not None else "N/A"
+                rel_vol_str = f"{rel_vol:.2f}x" if rel_vol is not None else "N/A"
+                spread_str = f"${spread:.2f}" if spread is not None else "N/A"
+
                 self.bus.publish(
                     "market_agent", "technical_agent",
-                    f"📊 Market Snapshot Delivered: Last Price=${last_price:.2f}, Relative Volume={rel_vol:.2f}x, Bid/Ask Spread=${spread:.2f}",
-                    {"price": last_price, "metrics": snapshot.metrics},
+                    f"📊 Market Snapshot Delivered: Last Price={price_str}, Relative Volume={rel_vol_str}, Bid/Ask Spread={spread_str}",
+                    {"price": last_price, "metrics": snapshot.metrics if snapshot else {}},
                     session_id=session_id, symbol=symbol, category="agent_dialogue"
                 )
             else:
@@ -172,7 +177,7 @@ class Orchestrator:
                     "⚠️ API WARNING: Market snapshot returned incomplete quote/trade data.",
                     session_id=session_id, symbol=symbol, category="api_diagnostic", status_code="warning"
                 )
-            analyses["market"] = {"metrics": snapshot.metrics} if snapshot else {}
+            analyses["market"] = {"metrics": snapshot.metrics} if snapshot and snapshot.metrics else {}
         except Exception as e:
             self.bus.publish(
                 "market_agent", "orchestrator",
@@ -200,8 +205,12 @@ class Orchestrator:
             ema50 = signals.get('ema_50')
             atr = signals.get('atr_14')
 
+            rsi_str = f"{rsi:.1f}" if rsi is not None else "N/A"
+            macd_str = f"{macd:.2f}" if macd is not None else "N/A"
+            atr_str = f"{atr:.2f}" if atr is not None else "N/A"
+
             trend = "UPTREND (EMA20 > EMA50)" if (ema20 or 0) > (ema50 or 0) else "DOWNTREND (EMA20 <= EMA50)"
-            summary = f"RSI(14)={rsi:.1f} if rsi else 'N/A', MACD={macd:.2f} if macd else 'N/A', Trend={trend}, ATR={atr:.2f} if atr else 'N/A'"
+            summary = f"RSI(14)={rsi_str}, MACD={macd_str}, Trend={trend}, ATR={atr_str}"
             
             self.bus.publish(
                 "technical_agent", "execution_agent",
@@ -234,7 +243,7 @@ class Orchestrator:
                 score = fund.get("score", 0)
                 self.bus.publish(
                     "fundamental_agent", "execution_agent",
-                    f"🏦 Fundamental Profile: Industry={co.get('industry', 'N/A')}, P/E={pe if pe else 'N/A'}, EPS={eps if eps else 'N/A'}, Beta={beta if beta else 'N/A'}. Valuation Score={score}",
+                    f"🏦 Fundamental Profile: Industry={co.get('industry', 'N/A')}, P/E={pe if pe is not None else 'N/A'}, EPS={eps if eps is not None else 'N/A'}, Beta={beta if beta is not None else 'N/A'}. Valuation Score={score}",
                     fund,
                     session_id=session_id, symbol=symbol, category="agent_dialogue"
                 )
@@ -298,9 +307,12 @@ class Orchestrator:
             risk_level = risk.get("risk_level", "medium")
             atr_pct = risk.get("checks", {}).get("atr_percent")
             rsi_warn = risk.get("checks", {}).get("rsi_warning", "None")
+
+            atr_vol_str = f"{atr_pct:.2f}%" if atr_pct is not None else "N/A"
+
             self.bus.publish(
                 "risk_agent", "execution_agent",
-                f"🛡️ Risk Assessment: Level={risk_level.upper()}, ATR Volatility={atr_pct:.2f}% of price if atr_pct else 'N/A'. RSI Warning: {rsi_warn}",
+                f"🛡️ Risk Assessment: Level={risk_level.upper()}, ATR Volatility={atr_vol_str} of price. RSI Warning: {rsi_warn}",
                 risk,
                 session_id=session_id, symbol=symbol, category="agent_dialogue"
             )
