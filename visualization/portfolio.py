@@ -99,17 +99,15 @@ def get_trading_client():
 # ============================================================
 
 def compute_range_return_pct(df):
-    """Compute a chart-friendly return series for a range window.
+    """Compute period return % from the first valid equity point in the range.
 
-    Alpaca's account portfolio history may contain placeholder zero values
-    before the account first holds a non-zero equity position. Those zeroes are
-    not real returns and should not be treated as a new baseline. We therefore:
+    Standard portfolio chart convention: the first in-range equity observation
+    is the 0% baseline, and each later point shows total return over the
+    selected window, e.g. (equity / equity_start - 1) * 100.
 
-    1. keep explicit, meaningful API return percentages when present,
-    2. otherwise derive a return series from the first valid equity point in the
-       selected range,
-    3. leave leading zero/empty placeholders at 0.0 instead of turning them into
-       artificial -100% returns.
+    Alpaca's profit_loss_pct uses its own base_value (prior close for
+    intraday, etc.) and must not be mixed with this range-relative series.
+    Leading zero-equity placeholders stay at 0.0.
     """
 
     if df is None or df.empty:
@@ -120,45 +118,62 @@ def compute_range_return_pct(df):
         errors="coerce",
     )
 
-    raw_profit_loss_pct = pd.to_numeric(
-        df.get("profit_loss_pct", pd.Series(np.nan, index=df.index)),
-        errors="coerce",
-    )
-
     result = pd.Series(
         0.0,
         index=df.index,
         dtype=float,
     )
 
-    valid_api_pct = raw_profit_loss_pct.notna() & (
-        ~np.isclose(raw_profit_loss_pct, 0.0, atol=1e-9)
-    )
-
-    if valid_api_pct.any():
-        result.loc[valid_api_pct] = raw_profit_loss_pct.loc[valid_api_pct]
-
     positive_equity = equity[equity > 0]
 
-    if not positive_equity.empty:
-        baseline_equity = float(positive_equity.iloc[0])
+    if positive_equity.empty:
+        return result
 
-        equity_based_return = pd.Series(
-            0.0,
-            index=df.index,
-            dtype=float,
-        )
+    baseline_equity = float(positive_equity.iloc[0])
+    equity_positive_mask = equity > 0
 
-        equity_positive_mask = equity > 0
-        equity_based_return.loc[equity_positive_mask] = (
-            equity.loc[equity_positive_mask] / baseline_equity - 1.0
-        ) * 100.0
-
-        result.loc[equity_positive_mask & ~valid_api_pct] = (
-            equity_based_return.loc[equity_positive_mask & ~valid_api_pct]
-        )
+    result.loc[equity_positive_mask] = (
+        equity.loc[equity_positive_mask] / baseline_equity - 1.0
+    ) * 100.0
 
     return result.round(8)
+
+
+def summarize_portfolio_period(portfolio_df):
+    """Derive headline metrics from a portfolio history dataframe."""
+
+    empty_summary = {
+        "current_value": 0.0,
+        "period_return_pct": 0.0,
+        "period_start_equity": 0.0,
+    }
+
+    if portfolio_df is None or portfolio_df.empty:
+        return empty_summary
+
+    positive_equity = portfolio_df.loc[
+        portfolio_df["equity"].gt(0)
+    ]
+
+    if positive_equity.empty:
+        return empty_summary
+
+    last_row = portfolio_df.iloc[-1]
+
+    return {
+        "current_value": safe_float(
+            last_row.get("equity"),
+            0.0,
+        ),
+        "period_return_pct": safe_float(
+            last_row.get("return_pct"),
+            0.0,
+        ),
+        "period_start_equity": safe_float(
+            positive_equity.iloc[0]["equity"],
+            0.0,
+        ),
+    }
 
 
 def utc_now():
@@ -787,11 +802,16 @@ def build_position_history(
 # POSITION RETURN
 # ============================================================
 
-def calculate_position_twr(
+def calculate_position_period_return(
     position_df,
-    fills,
     symbol,
 ):
+    """Return price performance for a held position over the selected range.
+
+    Uses the first in-range bar with an open position as the 0% baseline.
+    This matches standard brokerage charts and is directly comparable to the
+    account-level period return line.
+    """
 
     if position_df is None or position_df.empty:
         return pd.DataFrame()
@@ -808,155 +828,41 @@ def calculate_position_twr(
     if df.empty:
         return df
 
-    symbol_fills = (
-        fills[
-            fills["symbol"] == symbol
-        ]
-        .copy()
-        .sort_values("timestamp")
-        .reset_index(drop=True)
-    )
+    owned_mask = df["qty"].abs() > 1e-10
+    owned_rows = df.loc[owned_mask]
 
-    if symbol_fills.empty:
+    df["return_pct"] = np.nan
 
-        df["return_pct"] = 0.0
-
+    if owned_rows.empty:
         return df
 
-    # Build signed cash flows.
-    symbol_fills["cash_flow"] = (
-        symbol_fills["qty"].astype(float)
-        * symbol_fills["price"].astype(float)
+    baseline_close = safe_float(
+        owned_rows.iloc[0]["close"],
+        0.0,
     )
 
-    symbol_fills.loc[
-        symbol_fills["side"] == "buy",
-        "cash_flow",
-    ] *= -1
+    if abs(baseline_close) < 1e-10:
+        df.loc[owned_mask, "return_pct"] = 0.0
+        return df
 
-    symbol_fills.loc[
-        symbol_fills["side"] == "sell",
-        "cash_flow",
-    ] *= 1
-
-    fill_records = list(
-        zip(
-            symbol_fills[
-                "timestamp"
-            ].tolist(),
-            symbol_fills[
-                "cash_flow"
-            ].astype(float).tolist(),
-        )
-    )
-
-    fill_index = 0
-
-    growth = 1.0
-    previous_value = None
-    previous_timestamp = None
-
-    returns = []
-
-    for _, row in df.iterrows():
-
-        timestamp = normalize_timestamp(
-            row["timestamp"]
-        )
-
-        # ----------------------------------------------------
-        # Calculate net external cash flow between the
-        # previous observation and this observation.
-        # ----------------------------------------------------
-
-        net_flow = 0.0
-
-        while (
-            fill_index < len(fill_records)
-            and normalize_timestamp(
-                fill_records[fill_index][0]
-            ) <= timestamp
-        ):
-
-            fill_time = normalize_timestamp(
-                fill_records[fill_index][0]
-            )
-
-            if (
-                previous_timestamp is not None
-                and fill_time > previous_timestamp
-            ):
-                net_flow += float(
-                    fill_records[
-                        fill_index
-                    ][1]
-                )
-
-            fill_index += 1
-
-        # ----------------------------------------------------
-        # IMPORTANT:
-        # current_value MUST be defined before use.
-        # ----------------------------------------------------
-
-        current_value = safe_float(
-            row.get("market_value"),
-            0.0,
-        )
-
-        if previous_value is None:
-
-            cumulative_return = 0.0
-            growth = 1.0
-
-        else:
-
-            starting_value = float(
-                previous_value
-            )
-
-            # Remove cash contribution before measuring
-            # investment performance.
-            ending_value_before_flow = (
-                current_value
-                + net_flow
-            )
-
-            if abs(starting_value) < 1e-10:
-
-                period_return = 0.0
-
-            else:
-
-                period_return = (
-                    ending_value_before_flow
-                    / starting_value
-                    - 1.0
-                )
-
-                period_return = max(
-                    -0.999999,
-                    period_return,
-                )
-
-            growth *= (
-                1.0 + period_return
-            )
-
-            cumulative_return = (
-                growth - 1.0
-            )
-
-        returns.append(
-            cumulative_return * 100.0
-        )
-
-        previous_value = current_value
-        previous_timestamp = timestamp
-
-    df["return_pct"] = returns
+    df.loc[owned_mask, "return_pct"] = (
+        df.loc[owned_mask, "close"] / baseline_close - 1.0
+    ) * 100.0
 
     return df
+
+
+def calculate_position_twr(
+    position_df,
+    fills,
+    symbol,
+):
+    """Deprecated alias kept for compatibility — uses period price return."""
+
+    return calculate_position_period_return(
+        position_df,
+        symbol,
+    )
 
 
 # ============================================================
@@ -973,9 +879,8 @@ def build_performance_dataframe(
 
     for symbol in symbols:
 
-        result = calculate_position_twr(
+        result = calculate_position_period_return(
             position_history,
-            fills,
             symbol,
         )
 

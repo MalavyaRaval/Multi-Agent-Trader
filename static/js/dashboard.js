@@ -3232,10 +3232,124 @@ function pollMessages() {
 // Do NOT redeclare it here.
 
 const portfolioChartState = {
-    range: "1M",
+    range: "1D",
     mode: "return",
     symbols: []
 };
+
+
+function formatPortfolioSummaryCurrency(value) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return "—";
+    }
+
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        maximumFractionDigits: 2
+    }).format(Number(value));
+}
+
+
+function formatPortfolioSummaryPercent(value) {
+    if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return "—";
+    }
+
+    const number = Number(value);
+
+    return `${number >= 0 ? "+" : ""}${number.toFixed(2)}%`;
+}
+
+
+function syncPortfolioChartSymbolsFromPage() {
+    if (typeof portfolioSelectedSymbols === "undefined") {
+        return;
+    }
+
+    if (
+        portfolioSelectedSymbols.has("ALL") ||
+        portfolioSelectedSymbols.size === 0
+    ) {
+        portfolioChartState.symbols = [];
+        return;
+    }
+
+    portfolioChartState.symbols = Array.from(portfolioSelectedSymbols)
+        .map(symbol => String(symbol).trim().toUpperCase())
+        .filter(Boolean);
+}
+
+
+function updatePortfolioChartSummary(data) {
+    const currentValueElement =
+        document.getElementById("portfolio-current-value");
+
+    const returnElement =
+        document.getElementById("portfolio-period-return");
+
+    if (!currentValueElement && !returnElement) {
+        return;
+    }
+
+    let currentValue = Number(data?.current_value);
+    let periodReturn = Number(data?.period_return_pct);
+
+    const portfolioPoints = Array.isArray(data?.portfolio)
+        ? data.portfolio
+        : [];
+
+    if (!Number.isFinite(currentValue) && portfolioPoints.length > 0) {
+        for (let index = portfolioPoints.length - 1; index >= 0; index -= 1) {
+            const point = portfolioPoints[index];
+
+            if (!point || typeof point !== "object") {
+                continue;
+            }
+
+            const equity = Number(
+                point.equity ?? point.value
+            );
+
+            if (Number.isFinite(equity)) {
+                currentValue = equity;
+                break;
+            }
+        }
+    }
+
+    if (!Number.isFinite(periodReturn) && portfolioPoints.length > 0) {
+        for (let index = portfolioPoints.length - 1; index >= 0; index -= 1) {
+            const point = portfolioPoints[index];
+
+            if (!point || typeof point !== "object") {
+                continue;
+            }
+
+            const returnPct = Number(point.return_pct);
+
+            if (Number.isFinite(returnPct)) {
+                periodReturn = returnPct;
+                break;
+            }
+        }
+    }
+
+    if (currentValueElement) {
+        currentValueElement.textContent =
+            formatPortfolioSummaryCurrency(currentValue);
+    }
+
+    if (returnElement) {
+        returnElement.textContent =
+            formatPortfolioSummaryPercent(periodReturn);
+
+        returnElement.style.color =
+            periodReturn >= 0
+                ? "#34d399"
+                : "#f87171";
+    }
+}
 
 
 // ============================================================
@@ -3274,6 +3388,8 @@ async function loadPortfolioChart() {
     }
 
     portfolioChartState.range = activeRange;
+
+    syncPortfolioChartSymbolsFromPage();
 
     const selectedRangeEl =
         document.getElementById(
@@ -3353,6 +3469,16 @@ async function loadPortfolioChart() {
         }
 
         renderPortfolioChart(data);
+
+        if (
+            Array.isArray(data.symbols) &&
+            data.symbols.length > 0 &&
+            typeof updatePortfolioSymbolControls === "function"
+        ) {
+            updatePortfolioSymbolControls(data.symbols);
+        }
+
+        updatePortfolioChartSummary(data);
     }
     catch (error) {
         console.error(
@@ -3815,13 +3941,18 @@ function renderPortfolioChart(data) {
                                             label !==
                                             "Sell"
                                         ) {
+                                            const signedValue =
+                                                Number(value) >= 0
+                                                    ? `+${Number(value).toFixed(2)}`
+                                                    : Number(value).toFixed(2);
+
+                                            return `${label}: ${signedValue}%`;
+                                        }
+
+                                        if (data.mode === "value") {
                                             return (
                                                 `${label}: ` +
-                                                `${Number(
-                                                    value
-                                                ).toFixed(
-                                                    2
-                                                )}%`
+                                                formatPortfolioSummaryCurrency(value)
                                             );
                                         }
 
@@ -3872,9 +4003,12 @@ function renderPortfolioChart(data) {
                                             data.mode ===
                                             "return"
                                         ) {
-                                            return (
-                                                `${value}%`
-                                            );
+                                            const signedValue =
+                                                Number(value) >= 0
+                                                    ? `+${Number(value).toFixed(1)}`
+                                                    : Number(value).toFixed(1);
+
+                                            return `${signedValue}%`;
                                         }
 
                                         return Number(
@@ -4002,7 +4136,7 @@ function showPortfolioChartError(message) {
 // PORTFOLIO RANGE
 // ============================================================
 
-function setPortfolioChartRange(range) {
+function setPortfolioChartRange(range, button) {
     if (!range) {
         return;
     }
@@ -4026,29 +4160,27 @@ function setPortfolioChartRange(range) {
 
     document
         .querySelectorAll(
-            "[data-portfolio-range]"
+            "[data-portfolio-range], .portfolio-range-btn"
         )
-        .forEach(button => {
-            const isActive =
-                String(button.dataset.portfolioRange || "")
-                    .trim()
-                    .toUpperCase() === normalizedRange;
+        .forEach(btn => {
+            const btnRange = String(
+                btn.dataset.portfolioRange || btn.textContent || ""
+            )
+                .trim()
+                .toUpperCase();
 
-            button.classList.toggle(
-                "active",
-                isActive
-            );
+            const isActive = btnRange === normalizedRange;
 
-            button.classList.toggle(
-                "btn-primary",
-                isActive
-            );
-
-            button.classList.toggle(
-                "btn-secondary",
-                !isActive
-            );
+            btn.classList.toggle("active", isActive);
+            btn.classList.toggle("btn-primary", isActive);
+            btn.classList.toggle("btn-secondary", !isActive);
         });
+
+    if (button) {
+        button.classList.add("active");
+        button.classList.remove("btn-secondary");
+        button.classList.add("btn-primary");
+    }
 
     const selectedRange =
         document.getElementById(
@@ -4092,6 +4224,41 @@ function setPortfolioChartMode(mode) {
         });
 
     loadPortfolioChart();
+}
+
+// ============================================================
+// PORTFOLIO CHART AUTO REFRESH
+// ============================================================
+
+let portfolioChartRefreshTimer = null;
+let portfolioChartLoading = false;
+
+function schedulePortfolioChartRefresh(delay = 10000) {
+    if (portfolioChartRefreshTimer) {
+        clearTimeout(portfolioChartRefreshTimer);
+    }
+
+    portfolioChartRefreshTimer = setTimeout(
+        refreshPortfolioChart,
+        delay
+    );
+}
+
+async function refreshPortfolioChart() {
+    if (portfolioChartLoading) {
+        schedulePortfolioChartRefresh(2000);
+        return;
+    }
+
+    portfolioChartLoading = true;
+
+    try {
+        await loadPortfolioChart();
+    }
+    finally {
+        portfolioChartLoading = false;
+        schedulePortfolioChartRefresh(10000);
+    }
 }
 
 

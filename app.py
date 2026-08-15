@@ -31,6 +31,7 @@ from visualization.portfolio import (
     build_position_history,
     build_performance_dataframe,
     create_trade_markers_data,
+    summarize_portfolio_period,
     utc_now,
     TIMEFRAME_BY_RANGE,
 )
@@ -421,6 +422,71 @@ def api_optimize():
 def api_portfolio_chart():
     """Return portfolio/position history for the frontend chart."""
 
+    def build_portfolio_payload(portfolio_history, chart_mode):
+        portfolio_data = []
+
+        if portfolio_history.empty:
+            return portfolio_data
+
+        value_column = (
+            "equity"
+            if chart_mode == "value"
+            else "return_pct"
+        )
+
+        for _, row in portfolio_history.iterrows():
+            portfolio_data.append({
+                "timestamp": row["timestamp"].isoformat(),
+                "equity": float(row["equity"]),
+                "return_pct": (
+                    None
+                    if pd.isna(row["return_pct"])
+                    else float(row["return_pct"])
+                ),
+                "value": (
+                    None
+                    if pd.isna(row[value_column])
+                    else float(row[value_column])
+                ),
+            })
+
+        return portfolio_data
+
+    def chart_response(
+        *,
+        selected_range,
+        chart_mode,
+        timeframe=None,
+        portfolio_data=None,
+        portfolio_history=None,
+        symbols=None,
+        positions=None,
+        trades=None,
+    ):
+        summary = summarize_portfolio_period(
+            portfolio_history
+            if portfolio_history is not None
+            else pd.DataFrame()
+        )
+
+        payload = {
+            "status": "ok",
+            "range": selected_range,
+            "mode": chart_mode,
+            "portfolio": portfolio_data or [],
+            "positions": positions or [],
+            "trades": trades or [],
+            "symbols": symbols or [],
+            "current_value": summary["current_value"],
+            "period_return_pct": summary["period_return_pct"],
+            "period_start_equity": summary["period_start_equity"],
+        }
+
+        if timeframe is not None:
+            payload["timeframe"] = timeframe
+
+        return jsonify(payload)
+
     try:
         selected_range = request.args.get(
             "range",
@@ -452,17 +518,11 @@ def api_portfolio_chart():
 
         fills = get_all_fills()
 
-        if fills.empty:
-            return jsonify({
-                "status": "ok",
-                "range": selected_range,
-                "mode": chart_mode,
-                "portfolio": [],
-                "positions": [],
-                "trades": [],
-            })
-
-        first_trade_time = fills["timestamp"].min()
+        first_trade_time = (
+            fills["timestamp"].min()
+            if not fills.empty
+            else None
+        )
 
         range_start = get_range_start(
             selected_range,
@@ -475,43 +535,18 @@ def api_portfolio_chart():
             selected_range
         ]
 
-        # ----------------------------------------------------
-        # Portfolio history
-        # ----------------------------------------------------
-
         portfolio_history = get_portfolio_history(
             range_start,
             range_end,
             timeframe,
         )
 
-        portfolio_data = []
+        portfolio_data = build_portfolio_payload(
+            portfolio_history,
+            chart_mode,
+        )
 
-        if not portfolio_history.empty:
-
-            value_column = (
-                "equity"
-                if chart_mode == "value"
-                else "return_pct"
-            )
-
-            for _, row in portfolio_history.iterrows():
-
-                portfolio_data.append({
-                    "timestamp": row["timestamp"].isoformat(),
-                    "value": (
-                        None
-                        if pd.isna(row[value_column])
-                        else float(row[value_column])
-                    ),
-                })
-
-        # ----------------------------------------------------
-        # Determine symbols
-        # ----------------------------------------------------
-
-        if not selected_symbols:
-
+        if not selected_symbols and not fills.empty:
             selected_symbols = sorted(
                 fills["symbol"]
                 .dropna()
@@ -519,9 +554,14 @@ def api_portfolio_chart():
                 .tolist()
             )
 
-        # ----------------------------------------------------
-        # Historical stock prices
-        # ----------------------------------------------------
+        if not selected_symbols:
+            return chart_response(
+                selected_range=selected_range,
+                chart_mode=chart_mode,
+                timeframe=timeframe,
+                portfolio_data=portfolio_data,
+                portfolio_history=portfolio_history,
+            )
 
         bars = get_stock_bars(
             selected_symbols,
@@ -531,19 +571,14 @@ def api_portfolio_chart():
         )
 
         if bars.empty:
-
-            return jsonify({
-                "status": "ok",
-                "range": selected_range,
-                "mode": chart_mode,
-                "portfolio": portfolio_data,
-                "positions": [],
-                "trades": [],
-            })
-
-        # ----------------------------------------------------
-        # Position history
-        # ----------------------------------------------------
+            return chart_response(
+                selected_range=selected_range,
+                chart_mode=chart_mode,
+                timeframe=timeframe,
+                portfolio_data=portfolio_data,
+                portfolio_history=portfolio_history,
+                symbols=selected_symbols,
+            )
 
         position_history = build_position_history(
             fills,
@@ -552,26 +587,19 @@ def api_portfolio_chart():
         )
 
         if position_history.empty:
-
-            return jsonify({
-                "status": "ok",
-                "range": selected_range,
-                "mode": chart_mode,
-                "portfolio": portfolio_data,
-                "positions": [],
-                "trades": [],
-            })
-
-        # ----------------------------------------------------
-        # Performance history
-        # ----------------------------------------------------
-
-        performance_history = (
-            build_performance_dataframe(
-                position_history,
-                fills,
-                selected_symbols,
+            return chart_response(
+                selected_range=selected_range,
+                chart_mode=chart_mode,
+                timeframe=timeframe,
+                portfolio_data=portfolio_data,
+                portfolio_history=portfolio_history,
+                symbols=selected_symbols,
             )
+
+        performance_history = build_performance_dataframe(
+            position_history,
+            fills,
+            selected_symbols,
         )
 
         positions = []
@@ -579,9 +607,11 @@ def api_portfolio_chart():
 
         for symbol in selected_symbols:
 
-            symbol_fills = fills[
-                fills["symbol"] == symbol
-            ].copy()
+            symbol_fills = (
+                fills[fills["symbol"] == symbol].copy()
+                if not fills.empty
+                else pd.DataFrame()
+            )
 
             if chart_mode == "value":
 
@@ -611,29 +641,7 @@ def api_portfolio_chart():
                 if df.empty:
                     continue
 
-                position_df = position_history[
-                    position_history["symbol"] == symbol
-                ].copy()
-
-                owned_timestamps = set(
-                    position_df.loc[
-                        position_df["qty"].abs() > 1e-10,
-                        "timestamp",
-                    ]
-                )
-
-                df.loc[
-                    ~df["timestamp"].isin(
-                        owned_timestamps
-                    ),
-                    "return_pct",
-                ] = np.nan
-
                 value_column = "return_pct"
-
-            # ------------------------------------------------
-            # Position line
-            # ------------------------------------------------
 
             line = []
 
@@ -655,9 +663,8 @@ def api_portfolio_chart():
                 "data": line,
             })
 
-            # ------------------------------------------------
-            # Trade markers
-            # ------------------------------------------------
+            if symbol_fills.empty:
+                continue
 
             markers = create_trade_markers_data(
                 symbol_fills=symbol_fills,
@@ -670,15 +677,16 @@ def api_portfolio_chart():
 
             trades.extend(markers)
 
-        return jsonify({
-            "status": "ok",
-            "range": selected_range,
-            "mode": chart_mode,
-            "timeframe": timeframe,
-            "portfolio": portfolio_data,
-            "positions": positions,
-            "trades": trades,
-        })
+        return chart_response(
+            selected_range=selected_range,
+            chart_mode=chart_mode,
+            timeframe=timeframe,
+            portfolio_data=portfolio_data,
+            portfolio_history=portfolio_history,
+            symbols=selected_symbols,
+            positions=positions,
+            trades=trades,
+        )
 
     except Exception as e:
 
