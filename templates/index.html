@@ -321,49 +321,49 @@
 
 
                         <button type="button" class="btn btn-primary btn-small portfolio-range-btn active"
-                            data-range="1D" onclick="setPortfolioRange('1D', this)">
+                            data-portfolio-range="1D" onclick="setPortfolioChartRange('1D', this)">
                             1D
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="1W"
-                            onclick="setPortfolioRange('1W', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="1W"
+                            onclick="setPortfolioChartRange('1W', this)">
                             1W
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="1M"
-                            onclick="setPortfolioRange('1M', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="1M"
+                            onclick="setPortfolioChartRange('1M', this)">
                             1M
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="2M"
-                            onclick="setPortfolioRange('2M', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="2M"
+                            onclick="setPortfolioChartRange('2M', this)">
                             2M
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="3M"
-                            onclick="setPortfolioRange('3M', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="3M"
+                            onclick="setPortfolioChartRange('3M', this)">
                             3M
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="6M"
-                            onclick="setPortfolioRange('6M', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="6M"
+                            onclick="setPortfolioChartRange('6M', this)">
                             6M
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="1Y"
-                            onclick="setPortfolioRange('1Y', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="1Y"
+                            onclick="setPortfolioChartRange('1Y', this)">
                             1Y
                         </button>
 
 
-                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-range="ALL"
-                            onclick="setPortfolioRange('ALL', this)">
+                        <button type="button" class="btn btn-secondary btn-small portfolio-range-btn" data-portfolio-range="ALL"
+                            onclick="setPortfolioChartRange('ALL', this)">
                             All
                         </button>
 
@@ -564,7 +564,7 @@
                             </div>
 
                             <button type="button" class="btn btn-secondary btn-small"
-                                onclick="loadPortfolioPerformance()">
+                                onclick="loadPortfolioChart()">
                                 Retry
                             </button>
                         </div>
@@ -2019,6 +2019,10 @@
                     "portfolio-chart-error"
                 );
 
+            const canvas =
+                document.getElementById(
+                    "portfolioChart"
+                );
 
             if (loading) {
 
@@ -2049,6 +2053,11 @@
 
             }
 
+            if (canvas) {
+                const visible = state !== "empty" && state !== "error" && state !== "loading";
+                canvas.style.display = visible ? "block" : "none";
+            }
+
         }
 
 
@@ -2057,6 +2066,9 @@
          * ================================================================ */
 
         function setPortfolioRange(range, button) {
+            if (typeof setPortfolioChartRange === "function") {
+                return setPortfolioChartRange(range, button);
+            }
 
             const validRanges = [
                 "1D",
@@ -2113,7 +2125,11 @@
             }
 
 
-            loadPortfolioPerformance();
+            if (typeof loadPortfolioPerformance === "function") {
+                return loadPortfolioPerformance();
+            }
+
+            return null;
 
         }
 
@@ -2541,6 +2557,32 @@
 
             }
 
+            const portfolioRows =
+                normalizeArray(
+                    data.portfolio
+                );
+
+            if (!result.values.length && portfolioRows.length > 0) {
+                result.values = portfolioRows.map(row => {
+                    if (!row || typeof row !== "object") {
+                        return NaN;
+                    }
+                    return safeNumber(
+                        row.value ?? row.equity ?? row.portfolio_value ?? row.portfolioValue,
+                        NaN
+                    );
+                }).filter(value => Number.isFinite(value));
+            }
+
+            if (!result.labels.length && portfolioRows.length > 0) {
+                result.labels = portfolioRows.map(row => {
+                    if (!row || typeof row !== "object") {
+                        return "";
+                    }
+                    return row.timestamp ?? row.datetime ?? row.date ?? row.time ?? "";
+                });
+            }
+
 
             /*
              * Returns.
@@ -2578,6 +2620,18 @@
                         data.performance
                     );
 
+            }
+
+            if (!result.returns.length && portfolioRows.length > 0) {
+                result.returns = portfolioRows.map(row => {
+                    if (!row || typeof row !== "object") {
+                        return NaN;
+                    }
+                    return safeNumber(
+                        row.return_pct ?? row.return_percent ?? row.return ?? row.performance,
+                        NaN
+                    );
+                }).filter(value => Number.isFinite(value));
             }
 
 
@@ -3824,6 +3878,9 @@
          * ================================================================ */
 
         async function loadPortfolioPerformance() {
+            if (typeof loadPortfolioChart === "function") {
+                return loadPortfolioChart();
+            }
 
             /*
              * Don't allow several simultaneous refresh requests.
@@ -4065,6 +4122,9 @@
          * ================================================================ */
 
         function initializePortfolioPerformance() {
+            if (typeof initializePortfolioVisualization === "function") {
+                return initializePortfolioVisualization();
+            }
 
             /*
              * Make sure the selected range is reflected

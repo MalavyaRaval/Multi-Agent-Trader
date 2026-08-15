@@ -61,6 +61,7 @@ TIMEFRAME_BY_RANGE = {
     "3M": "1D",
     "6M": "1D",
     "1Y": "1D",
+    "ALL": "1D",
     "All": "1D",
 }
 

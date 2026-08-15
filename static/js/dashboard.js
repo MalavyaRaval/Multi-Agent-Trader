@@ -3260,6 +3260,10 @@ async function loadPortfolioChart() {
     }
 
     try {
+        if (typeof showPortfolioChartState === "function") {
+            showPortfolioChartState("loading");
+        }
+
         const params =
             new URLSearchParams();
 
@@ -3657,6 +3661,10 @@ function renderPortfolioChart(data) {
         return;
     }
 
+    if (typeof showPortfolioChartState === "function") {
+        showPortfolioChartState("ready");
+    }
+
 
     // --------------------------------------------------------
     // Remove previous messages
@@ -3870,76 +3878,41 @@ function renderPortfolioChart(data) {
 // ============================================================
 
 function showPortfolioChartEmpty() {
+    const loadingState =
+        document.getElementById(
+            "portfolio-chart-loading"
+        );
+
+    if (loadingState) {
+        loadingState.style.display = "none";
+    }
+
+    const emptyState =
+        document.getElementById(
+            "portfolio-chart-empty"
+        );
+
+    if (emptyState) {
+        emptyState.style.display = "flex";
+    }
+
     const canvas =
         document.getElementById(
             "portfolioChart"
         );
 
-    const container =
-        document.getElementById(
-            "portfolioChartContainer"
-        );
-
-    if (!container) {
-        return;
-    }
-
     if (canvas) {
-        canvas.style.display =
-            "none";
+        canvas.style.display = "none";
     }
 
-    const existingError =
-        container.querySelector(
-            ".portfolio-chart-error"
+    const errorState =
+        document.getElementById(
+            "portfolio-chart-error"
         );
 
-    if (existingError) {
-        existingError.remove();
+    if (errorState) {
+        errorState.style.display = "none";
     }
-
-    let message =
-        container.querySelector(
-            ".portfolio-chart-message"
-        );
-
-    if (!message) {
-        message =
-            document.createElement(
-                "div"
-            );
-
-        message.className =
-            "portfolio-chart-message";
-
-        message.style.cssText = `
-            height:100%;
-            min-height:280px;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            color:var(--text-muted, #9ca3af);
-            text-align:center;
-            padding:30px;
-        `;
-
-        container.appendChild(message);
-    }
-
-    message.innerHTML = `
-        <strong style="
-            color:#e5e7eb;
-            margin-bottom:6px;
-        ">
-            No portfolio history yet
-        </strong>
-
-        <span>
-            Portfolio performance will appear here
-            after trades or portfolio history are available.
-        </span>
-    `;
 }
 
 
@@ -3948,85 +3921,52 @@ function showPortfolioChartEmpty() {
 // ============================================================
 
 function showPortfolioChartError(message) {
+    const loadingState =
+        document.getElementById(
+            "portfolio-chart-loading"
+        );
+
+    if (loadingState) {
+        loadingState.style.display = "none";
+    }
+
+    const errorState =
+        document.getElementById(
+            "portfolio-chart-error"
+        );
+
+    const errorMessage =
+        document.getElementById(
+            "portfolio-chart-error-message"
+        );
+
+    if (errorState) {
+        errorState.style.display = "flex";
+    }
+
+    if (errorMessage) {
+        errorMessage.textContent =
+            message ||
+            "Unable to load portfolio chart.";
+    }
+
     const canvas =
         document.getElementById(
             "portfolioChart"
         );
 
-    const container =
-        document.getElementById(
-            "portfolioChartContainer"
-        );
-
-    if (!container) {
-        console.error(
-            "Portfolio chart container not found:",
-            message
-        );
-
-        return;
-    }
-
     if (canvas) {
-        canvas.style.display =
-            "none";
+        canvas.style.display = "none";
     }
 
-    const emptyMessage =
-        container.querySelector(
-            ".portfolio-chart-message"
+    const emptyState =
+        document.getElementById(
+            "portfolio-chart-empty"
         );
 
-    if (emptyMessage) {
-        emptyMessage.remove();
+    if (emptyState) {
+        emptyState.style.display = "none";
     }
-
-    let errorBox =
-        container.querySelector(
-            ".portfolio-chart-error"
-        );
-
-    if (!errorBox) {
-        errorBox =
-            document.createElement(
-                "div"
-            );
-
-        errorBox.className =
-            "portfolio-chart-error";
-
-        errorBox.style.cssText = `
-            height:100%;
-            min-height:280px;
-            display:flex;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            color:#9ca3af;
-            text-align:center;
-            padding:30px;
-        `;
-
-        container.appendChild(
-            errorBox
-        );
-    }
-
-    errorBox.innerHTML = `
-        <strong style="
-            color:#fb7185;
-            margin-bottom:6px;
-        ">
-            Portfolio chart unavailable
-        </strong>
-
-        <span>
-            ${escapeHtml(
-        message ||
-        "Unable to load portfolio chart."
-    )}
-        </span>
-    `;
 }
 
 
@@ -4034,7 +3974,7 @@ function showPortfolioChartError(message) {
 // PORTFOLIO RANGE
 // ============================================================
 
-function setPortfolioRange(range) {
+function setPortfolioChartRange(range) {
     if (!range) {
         return;
     }
@@ -4063,7 +4003,7 @@ function setPortfolioRange(range) {
 // PORTFOLIO MODE
 // ============================================================
 
-function setPortfolioMode(mode) {
+function setPortfolioChartMode(mode) {
     if (!mode) {
         return;
     }
@@ -4101,7 +4041,7 @@ function initializePortfolioVisualization() {
             button.addEventListener(
                 "click",
                 () => {
-                    setPortfolioRange(
+                    setPortfolioChartRange(
                         button.dataset
                             .portfolioRange
                     );
@@ -4117,7 +4057,7 @@ function initializePortfolioVisualization() {
             button.addEventListener(
                 "click",
                 () => {
-                    setPortfolioMode(
+                    setPortfolioChartMode(
                         button.dataset
                             .portfolioMode
                     );

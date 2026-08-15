@@ -426,6 +426,7 @@ def api_portfolio_chart():
             "range",
             "1M",
         )
+        selected_range = (selected_range or "1M").upper()
 
         chart_mode = request.args.get(
             "mode",
