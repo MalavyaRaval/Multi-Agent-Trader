@@ -3874,7 +3874,10 @@ function renderPortfolioChart(data) {
                         false,
 
                     animation: {
-                        duration: 250
+                        duration: 0,
+                        active: {
+                            duration: 0
+                        }
                     },
 
                     interaction: {
@@ -3884,7 +3887,7 @@ function renderPortfolioChart(data) {
 
                     plugins: {
                         legend: {
-                            display: true,
+                            display: false,
 
                             labels: {
                                 color:
