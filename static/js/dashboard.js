@@ -3237,6 +3237,133 @@ const portfolioChartState = {
     symbols: []
 };
 
+let portfolioCurrentRange = "1D";
+let portfolioSelectedSymbols = new Set(["ALL"]);
+let portfolioRequestInProgress = false;
+let portfolioLastData = null;
+let portfolioChartRequestToken = 0;
+
+function setPortfolioRange(range, button) {
+    setPortfolioChartRange(range, button);
+}
+
+function togglePortfolioSymbol(symbol, button) {
+    const normalizedSymbol = String(symbol ?? "").trim().toUpperCase();
+
+    if (!normalizedSymbol) {
+        return;
+    }
+
+    if (normalizedSymbol === "ALL") {
+        portfolioSelectedSymbols = new Set(["ALL"]);
+
+        document.querySelectorAll(".portfolio-symbol-btn").forEach(btn => {
+            const isAll = btn.dataset.symbol === "ALL";
+            btn.classList.toggle("active", isAll);
+            btn.classList.toggle("btn-primary", isAll);
+            btn.classList.toggle("btn-secondary", !isAll);
+        });
+
+        loadPortfolioChart();
+        return;
+    }
+
+    if (portfolioSelectedSymbols.has("ALL")) {
+        portfolioSelectedSymbols.delete("ALL");
+    }
+
+    if (portfolioSelectedSymbols.has(normalizedSymbol)) {
+        portfolioSelectedSymbols.delete(normalizedSymbol);
+    }
+    else {
+        portfolioSelectedSymbols.add(normalizedSymbol);
+    }
+
+    if (portfolioSelectedSymbols.size === 0) {
+        portfolioSelectedSymbols = new Set(["ALL"]);
+    }
+
+    document.querySelectorAll(".portfolio-symbol-btn").forEach(btn => {
+        const symbolValue = String(btn.dataset.symbol || "").toUpperCase();
+        const isActive = portfolioSelectedSymbols.has(symbolValue) || (
+            portfolioSelectedSymbols.size === 1 && portfolioSelectedSymbols.has("ALL") && symbolValue === "ALL"
+        );
+
+        btn.classList.toggle("active", isActive);
+        btn.classList.toggle("btn-primary", isActive);
+        btn.classList.toggle("btn-secondary", !isActive);
+    });
+
+    loadPortfolioChart();
+}
+
+function updatePortfolioSymbolControls(symbols) {
+    const container = document.getElementById("portfolio-symbol-controls");
+
+    if (!container) {
+        return;
+    }
+
+    const normalizedSymbols = Array.from(
+        new Set(
+            (Array.isArray(symbols) ? symbols : [])
+                .map(symbol => String(symbol).trim().toUpperCase())
+                .filter(Boolean)
+        )
+    ).sort();
+
+    const previousSelection = new Set(portfolioSelectedSymbols);
+    container.innerHTML = "";
+
+    const label = document.createElement("span");
+    label.style.fontSize = "0.78rem";
+    label.style.color = "var(--text-muted)";
+    label.style.marginRight = "4px";
+    label.textContent = "Symbols:";
+    container.appendChild(label);
+
+    const allButton = document.createElement("button");
+    allButton.type = "button";
+    allButton.className = "btn btn-secondary btn-small portfolio-symbol-btn";
+    allButton.dataset.symbol = "ALL";
+    allButton.textContent = "All";
+    allButton.onclick = () => togglePortfolioSymbol("ALL", allButton);
+
+    if (previousSelection.has("ALL") || previousSelection.size === 0) {
+        allButton.classList.add("active");
+        allButton.classList.remove("btn-secondary");
+        allButton.classList.add("btn-primary");
+        portfolioSelectedSymbols = new Set(["ALL"]);
+    }
+
+    container.appendChild(allButton);
+
+    normalizedSymbols.forEach(symbol => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn btn-secondary btn-small portfolio-symbol-btn";
+        button.dataset.symbol = symbol;
+        button.textContent = symbol;
+        button.onclick = () => togglePortfolioSymbol(symbol, button);
+
+        if (previousSelection.has(symbol) && !previousSelection.has("ALL")) {
+            button.classList.add("active");
+            button.classList.remove("btn-secondary");
+            button.classList.add("btn-primary");
+        }
+
+        container.appendChild(button);
+    });
+}
+
+async function loadPortfolioPerformance() {
+    return loadPortfolioChart();
+}
+
+function initializePortfolioPerformance() {
+    return initializePortfolioVisualization();
+}
+
 
 function formatPortfolioSummaryCurrency(value) {
     if (value === null || value === undefined || !Number.isFinite(Number(value))) {
@@ -3403,10 +3530,15 @@ async function loadPortfolioChart() {
                 : activeRange;
     }
 
+    if (portfolioRequestInProgress) {
+        return;
+    }
+
+    const requestId = ++portfolioChartRequestToken;
+    portfolioRequestInProgress = true;
+
     try {
-        if (typeof showPortfolioChartState === "function") {
-            showPortfolioChartState("loading");
-        }
+        showPortfolioChartState("loading");
 
         const params =
             new URLSearchParams();
@@ -3457,6 +3589,10 @@ async function loadPortfolioChart() {
             );
         }
 
+        if (requestId !== portfolioChartRequestToken) {
+            return;
+        }
+
         if (
             !response.ok ||
             data.status !== "ok"
@@ -3481,6 +3617,10 @@ async function loadPortfolioChart() {
         updatePortfolioChartSummary(data);
     }
     catch (error) {
+        if (requestId !== portfolioChartRequestToken) {
+            return;
+        }
+
         console.error(
             "Portfolio chart error:",
             error
@@ -3490,6 +3630,11 @@ async function loadPortfolioChart() {
             error.message ||
             "Unable to load portfolio chart."
         );
+    }
+    finally {
+        if (requestId === portfolioChartRequestToken) {
+            portfolioRequestInProgress = false;
+        }
     }
 }
 
@@ -4039,61 +4184,21 @@ function renderPortfolioChart(data) {
 
 
 // ============================================================
-// PORTFOLIO CHART EMPTY STATE
+// PORTFOLIO CHART STATE
 // ============================================================
 
-function showPortfolioChartEmpty() {
+function showPortfolioChartState(state) {
+    const normalizedState = String(state || "ready").toLowerCase();
+
     const loadingState =
         document.getElementById(
             "portfolio-chart-loading"
         );
-
-    if (loadingState) {
-        loadingState.style.display = "none";
-    }
 
     const emptyState =
         document.getElementById(
             "portfolio-chart-empty"
         );
-
-    if (emptyState) {
-        emptyState.style.display = "flex";
-    }
-
-    const canvas =
-        document.getElementById(
-            "portfolioChart"
-        );
-
-    if (canvas) {
-        canvas.style.display = "none";
-    }
-
-    const errorState =
-        document.getElementById(
-            "portfolio-chart-error"
-        );
-
-    if (errorState) {
-        errorState.style.display = "none";
-    }
-}
-
-
-// ============================================================
-// PORTFOLIO CHART ERROR
-// ============================================================
-
-function showPortfolioChartError(message) {
-    const loadingState =
-        document.getElementById(
-            "portfolio-chart-loading"
-        );
-
-    if (loadingState) {
-        loadingState.style.display = "none";
-    }
 
     const errorState =
         document.getElementById(
@@ -4105,9 +4210,58 @@ function showPortfolioChartError(message) {
             "portfolio-chart-error-message"
         );
 
-    if (errorState) {
-        errorState.style.display = "flex";
+    const canvas =
+        document.getElementById(
+            "portfolioChart"
+        );
+
+    if (loadingState) {
+        loadingState.style.display =
+            normalizedState === "loading"
+                ? "flex"
+                : "none";
     }
+
+    if (emptyState) {
+        emptyState.style.display =
+            normalizedState === "empty"
+                ? "flex"
+                : "none";
+    }
+
+    if (errorState) {
+        errorState.style.display =
+            normalizedState === "error"
+                ? "flex"
+                : "none";
+    }
+
+    if (errorMessage && normalizedState !== "error") {
+        errorMessage.textContent =
+            "Please try refreshing the chart.";
+    }
+
+    if (canvas) {
+        canvas.style.display =
+            normalizedState === "ready"
+                ? "block"
+                : "none";
+    }
+}
+
+function showPortfolioChartLoading() {
+    showPortfolioChartState("loading");
+}
+
+function showPortfolioChartEmpty() {
+    showPortfolioChartState("empty");
+}
+
+function showPortfolioChartError(message) {
+    const errorMessage =
+        document.getElementById(
+            "portfolio-chart-error-message"
+        );
 
     if (errorMessage) {
         errorMessage.textContent =
@@ -4115,23 +4269,7 @@ function showPortfolioChartError(message) {
             "Unable to load portfolio chart.";
     }
 
-    const canvas =
-        document.getElementById(
-            "portfolioChart"
-        );
-
-    if (canvas) {
-        canvas.style.display = "none";
-    }
-
-    const emptyState =
-        document.getElementById(
-            "portfolio-chart-empty"
-        );
-
-    if (emptyState) {
-        emptyState.style.display = "none";
-    }
+    showPortfolioChartState("error");
 }
 
 
@@ -4275,6 +4413,11 @@ function initializePortfolioVisualization() {
             "[data-portfolio-range]"
         )
         .forEach(button => {
+            if (button.dataset.portfolioRangeBound === "true") {
+                return;
+            }
+
+            button.dataset.portfolioRangeBound = "true";
             button.addEventListener(
                 "click",
                 () => {
@@ -4291,6 +4434,11 @@ function initializePortfolioVisualization() {
             "[data-portfolio-mode]"
         )
         .forEach(button => {
+            if (button.dataset.portfolioModeBound === "true") {
+                return;
+            }
+
+            button.dataset.portfolioModeBound = "true";
             button.addEventListener(
                 "click",
                 () => {
