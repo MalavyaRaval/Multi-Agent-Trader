@@ -3259,6 +3259,34 @@ async function loadPortfolioChart() {
         return;
     }
 
+    const activeRange =
+        String(
+            portfolioChartState?.range ||
+            (typeof portfolioCurrentRange !== "undefined"
+                ? portfolioCurrentRange
+                : "1D")
+        )
+            .trim()
+            .toUpperCase();
+
+    if (typeof portfolioCurrentRange !== "undefined") {
+        portfolioCurrentRange = activeRange;
+    }
+
+    portfolioChartState.range = activeRange;
+
+    const selectedRangeEl =
+        document.getElementById(
+            "portfolio-selected-range"
+        );
+
+    if (selectedRangeEl) {
+        selectedRangeEl.textContent =
+            activeRange === "ALL"
+                ? "All"
+                : activeRange;
+    }
+
     try {
         if (typeof showPortfolioChartState === "function") {
             showPortfolioChartState("loading");
@@ -3269,7 +3297,7 @@ async function loadPortfolioChart() {
 
         params.set(
             "range",
-            portfolioChartState.range
+            activeRange
         );
 
         params.set(
@@ -3979,21 +4007,60 @@ function setPortfolioChartRange(range) {
         return;
     }
 
-    portfolioChartState.range =
-        range;
+    const normalizedRange =
+        String(range)
+            .trim()
+            .toUpperCase();
+
+    const validRanges = ['1D', '1W', '1M', '2M', '3M', '6M', '1Y', 'ALL'];
+
+    if (!validRanges.includes(normalizedRange)) {
+        return;
+    }
+
+    portfolioChartState.range = normalizedRange;
+
+    if (typeof portfolioCurrentRange !== "undefined") {
+        portfolioCurrentRange = normalizedRange;
+    }
 
     document
         .querySelectorAll(
             "[data-portfolio-range]"
         )
         .forEach(button => {
+            const isActive =
+                String(button.dataset.portfolioRange || "")
+                    .trim()
+                    .toUpperCase() === normalizedRange;
+
             button.classList.toggle(
                 "active",
-                button.dataset
-                    .portfolioRange ===
-                range
+                isActive
+            );
+
+            button.classList.toggle(
+                "btn-primary",
+                isActive
+            );
+
+            button.classList.toggle(
+                "btn-secondary",
+                !isActive
             );
         });
+
+    const selectedRange =
+        document.getElementById(
+            "portfolio-selected-range"
+        );
+
+    if (selectedRange) {
+        selectedRange.textContent =
+            normalizedRange === "ALL"
+                ? "All"
+                : normalizedRange;
+    }
 
     loadPortfolioChart();
 }

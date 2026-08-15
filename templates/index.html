@@ -4126,14 +4126,22 @@
                 return initializePortfolioVisualization();
             }
 
-            /*
-             * Make sure the selected range is reflected
-             * in the UI.
-             */
             const selectedRange =
                 document.getElementById(
                     "portfolio-selected-range"
                 );
+
+            if (selectedRange && typeof portfolioCurrentRange !== "undefined") {
+                selectedRange.textContent =
+                    portfolioCurrentRange === "ALL"
+                        ? "All"
+                        : portfolioCurrentRange;
+            }
+
+            /*
+             * Make sure the selected range is reflected
+             * in the UI.
+             */
 
 
             if (selectedRange) {
