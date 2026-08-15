@@ -1,5 +1,12 @@
 .env
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Virtual environments
 .venv/
 venv/
+
+# Pytest
+.pytest_cache/

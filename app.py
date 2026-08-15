@@ -1,7 +1,10 @@
+import os
 import re
 import json
 
-from flask import Flask, jsonify, render_template, request
+import numpy as np
+import pandas as pd
+from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from agents.technical_agent import TechnicalAgent
 from market_data_agent import run_turn as run_market_data_agent_turn
@@ -19,6 +22,18 @@ from memory.vector_store import VectorStore
 from memory.reflections import ReflectionEngine
 from sizing import target_volatility_size, risk_parity_size, half_kelly
 from reporting.daily_report import build_daily_report
+
+from visualization.portfolio import (
+    get_all_fills,
+    get_stock_bars,
+    get_range_start,
+    get_portfolio_history,
+    build_position_history,
+    build_performance_dataframe,
+    create_trade_markers_data,
+    utc_now,
+    TIMEFRAME_BY_RANGE,
+)
 
 app = Flask(__name__)
 technical_agent = TechnicalAgent()
@@ -65,6 +80,12 @@ def _format_technical_response(result: dict) -> str:
 def index():
     account_info = get_trading_account_info()
     return render_template("index.html", account_info=account_info)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    static_dir = os.path.join(app.root_path, "static")
+    return send_from_directory(static_dir, "favicon.svg", mimetype="image/svg+xml")
 
 
 @app.route("/chat", methods=["POST"])
@@ -394,6 +415,276 @@ def api_optimize():
         return jsonify({"status": "ok", "weights": weights, "metric": metric})
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/portfolio_chart", methods=["GET"])
+def api_portfolio_chart():
+    """Return portfolio/position history for the frontend chart."""
+
+    try:
+        selected_range = request.args.get(
+            "range",
+            "1M",
+        )
+
+        chart_mode = request.args.get(
+            "mode",
+            "return",
+        )
+
+        symbols_param = request.args.get(
+            "symbols",
+            "",
+        )
+
+        selected_symbols = [
+            s.strip().upper()
+            for s in symbols_param.split(",")
+            if s.strip()
+        ]
+
+        if selected_range not in TIMEFRAME_BY_RANGE:
+            return jsonify({
+                "status": "error",
+                "error": f"Invalid range: {selected_range}",
+            }), 400
+
+        fills = get_all_fills()
+
+        if fills.empty:
+            return jsonify({
+                "status": "ok",
+                "range": selected_range,
+                "mode": chart_mode,
+                "portfolio": [],
+                "positions": [],
+                "trades": [],
+            })
+
+        first_trade_time = fills["timestamp"].min()
+
+        range_start = get_range_start(
+            selected_range,
+            first_trade_time,
+        )
+
+        range_end = utc_now()
+
+        timeframe = TIMEFRAME_BY_RANGE[
+            selected_range
+        ]
+
+        # ----------------------------------------------------
+        # Portfolio history
+        # ----------------------------------------------------
+
+        portfolio_history = get_portfolio_history(
+            range_start,
+            range_end,
+            timeframe,
+        )
+
+        portfolio_data = []
+
+        if not portfolio_history.empty:
+
+            value_column = (
+                "equity"
+                if chart_mode == "value"
+                else "return_pct"
+            )
+
+            for _, row in portfolio_history.iterrows():
+
+                portfolio_data.append({
+                    "timestamp": row["timestamp"].isoformat(),
+                    "value": (
+                        None
+                        if pd.isna(row[value_column])
+                        else float(row[value_column])
+                    ),
+                })
+
+        # ----------------------------------------------------
+        # Determine symbols
+        # ----------------------------------------------------
+
+        if not selected_symbols:
+
+            selected_symbols = sorted(
+                fills["symbol"]
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+        # ----------------------------------------------------
+        # Historical stock prices
+        # ----------------------------------------------------
+
+        bars = get_stock_bars(
+            selected_symbols,
+            range_start,
+            range_end,
+            timeframe,
+        )
+
+        if bars.empty:
+
+            return jsonify({
+                "status": "ok",
+                "range": selected_range,
+                "mode": chart_mode,
+                "portfolio": portfolio_data,
+                "positions": [],
+                "trades": [],
+            })
+
+        # ----------------------------------------------------
+        # Position history
+        # ----------------------------------------------------
+
+        position_history = build_position_history(
+            fills,
+            bars,
+            selected_symbols,
+        )
+
+        if position_history.empty:
+
+            return jsonify({
+                "status": "ok",
+                "range": selected_range,
+                "mode": chart_mode,
+                "portfolio": portfolio_data,
+                "positions": [],
+                "trades": [],
+            })
+
+        # ----------------------------------------------------
+        # Performance history
+        # ----------------------------------------------------
+
+        performance_history = (
+            build_performance_dataframe(
+                position_history,
+                fills,
+                selected_symbols,
+            )
+        )
+
+        positions = []
+        trades = []
+
+        for symbol in selected_symbols:
+
+            symbol_fills = fills[
+                fills["symbol"] == symbol
+            ].copy()
+
+            if chart_mode == "value":
+
+                df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                df.loc[
+                    df["qty"].abs() < 1e-10,
+                    "market_value",
+                ] = np.nan
+
+                value_column = "market_value"
+
+            else:
+
+                if performance_history.empty:
+                    continue
+
+                df = performance_history[
+                    performance_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                position_df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                owned_timestamps = set(
+                    position_df.loc[
+                        position_df["qty"].abs() > 1e-10,
+                        "timestamp",
+                    ]
+                )
+
+                df.loc[
+                    ~df["timestamp"].isin(
+                        owned_timestamps
+                    ),
+                    "return_pct",
+                ] = np.nan
+
+                value_column = "return_pct"
+
+            # ------------------------------------------------
+            # Position line
+            # ------------------------------------------------
+
+            line = []
+
+            for _, row in df.iterrows():
+
+                value = row[value_column]
+
+                line.append({
+                    "timestamp": row["timestamp"].isoformat(),
+                    "value": (
+                        None
+                        if pd.isna(value)
+                        else float(value)
+                    ),
+                })
+
+            positions.append({
+                "symbol": symbol,
+                "data": line,
+            })
+
+            # ------------------------------------------------
+            # Trade markers
+            # ------------------------------------------------
+
+            markers = create_trade_markers_data(
+                symbol_fills=symbol_fills,
+                line_df=df,
+                value_column=value_column,
+                symbol=symbol,
+                range_start=range_start,
+                range_end=range_end,
+            )
+
+            trades.extend(markers)
+
+        return jsonify({
+            "status": "ok",
+            "range": selected_range,
+            "mode": chart_mode,
+            "timeframe": timeframe,
+            "portfolio": portfolio_data,
+            "positions": positions,
+            "trades": trades,
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+        }), 500
 
 
 @app.route("/api/weights", methods=["GET"])

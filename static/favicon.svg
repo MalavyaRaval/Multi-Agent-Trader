@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Portfolio dashboard icon">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#22c55e"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0f172a"/>
+  <path d="M14 41L25 27L32 35L47 18L50 20V47H14Z" fill="url(#bg)" opacity="0.95"/>
+  <path d="M14 47H50" stroke="#e2e8f0" stroke-width="3" stroke-linecap="round"/>
+</svg>
