@@ -129,9 +129,12 @@ def compute_range_return_pct(df):
 
     work = df.copy()
 
-    work = work.sort_values(
-        "timestamp"
-    ).reset_index(drop=True)
+    if "timestamp" in work.columns:
+        work = work.sort_values(
+            "timestamp"
+        ).reset_index(drop=True)
+    else:
+        work = work.reset_index(drop=True)
 
     equity = pd.to_numeric(
         work["equity"],
@@ -668,74 +671,92 @@ def get_stock_bars(
             ]
         )
 
+    preferred_feeds = []
+    env_feed = str(
+        os.getenv("ALPACA_DATA_FEED", "")
+    ).strip().lower()
+
+    if env_feed:
+        preferred_feeds.append(env_feed)
+
+    for fallback_feed in ("iex", "sip"):
+        if fallback_feed not in preferred_feeds:
+            preferred_feeds.append(fallback_feed)
+
     all_rows = []
 
     for symbol in symbols:
 
         symbol = str(symbol).upper()
-        page_token = None
+        symbol_rows = []
 
-        while True:
+        for feed_name in preferred_feeds:
+            page_token = None
+            found_any_bars = False
 
-            params = {
-                "timeframe": timeframe,
-                "start": normalize_timestamp(
-                    start
-                ).isoformat(),
-                "end": normalize_timestamp(
-                    end
-                ).isoformat(),
-                "limit": 10000,
-                "sort": "asc",
-                "adjustment": "raw",
-                "feed": "iex",
-            }
+            while True:
 
-            if page_token:
-                params["page_token"] = page_token
+                params = {
+                    "timeframe": timeframe,
+                    "start": normalize_timestamp(
+                        start
+                    ).isoformat(),
+                    "end": normalize_timestamp(
+                        end
+                    ).isoformat(),
+                    "limit": 10000,
+                    "sort": "asc",
+                    "adjustment": "raw",
+                    "feed": feed_name,
+                }
 
-            response = requests.get(
-                f"{DATA_URL}/stocks/{symbol}/bars",
-                headers=HEADERS,
-                params=params,
-                timeout=60,
-            )
-
-            response.raise_for_status()
-
-            data = response.json()
-
-            bars = data.get(
-                "bars",
-                [],
-            )
-
-            for bar in bars:
+                if page_token:
+                    params["page_token"] = page_token
 
                 try:
-
-                    all_rows.append(
-                        {
-                            "timestamp": pd.to_datetime(
-                                bar["t"],
-                                utc=True,
-                            ),
-                            "symbol": symbol,
-                            "close": float(
-                                bar["c"]
-                            ),
-                        }
+                    response = requests.get(
+                        f"{DATA_URL}/stocks/{symbol}/bars",
+                        headers=HEADERS,
+                        params=params,
+                        timeout=60,
                     )
-
+                    response.raise_for_status()
                 except Exception:
-                    continue
+                    break
 
-            page_token = data.get(
-                "next_page_token"
-            )
+                data = response.json() or {}
+                bars = data.get("bars") or []
 
-            if not page_token:
+                if not isinstance(bars, list):
+                    bars = []
+
+                for bar in bars:
+                    try:
+                        symbol_rows.append(
+                            {
+                                "timestamp": pd.to_datetime(
+                                    bar["t"],
+                                    utc=True,
+                                ),
+                                "symbol": symbol,
+                                "close": float(
+                                    bar["c"]
+                                ),
+                            }
+                        )
+                        found_any_bars = True
+                    except Exception:
+                        continue
+
+                page_token = data.get("next_page_token")
+
+                if not page_token:
+                    break
+
+            if found_any_bars:
                 break
+
+        all_rows.extend(symbol_rows)
 
     if not all_rows:
 

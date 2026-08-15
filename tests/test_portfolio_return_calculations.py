@@ -1,9 +1,12 @@
+from unittest.mock import Mock
+
 import pandas as pd
 import pytest
 
 from visualization.portfolio import (
     calculate_position_period_return,
     compute_range_return_pct,
+    get_stock_bars,
     summarize_portfolio_period,
 )
 
@@ -77,3 +80,39 @@ def test_calculate_position_period_return_uses_first_owned_bar_as_baseline():
     assert result.iloc[1]["return_pct"] == 0.0
     assert result.iloc[2]["return_pct"] == pytest.approx(10.0)
     assert pd.isna(result.iloc[3]["return_pct"])
+
+
+def test_get_stock_bars_falls_back_to_sip_when_iex_has_no_data(monkeypatch):
+    feed_calls = []
+
+    def fake_get(url, headers=None, params=None, timeout=None):
+        feed_calls.append(params["feed"])
+
+        if params["feed"] == "iex":
+            return Mock(
+                raise_for_status=lambda: None,
+                json=lambda: {"bars": []},
+            )
+
+        return Mock(
+            raise_for_status=lambda: None,
+            json=lambda: {
+                "bars": [
+                    {"t": "2026-08-14T20:15:00Z", "c": 123.45},
+                    {"t": "2026-08-14T20:20:00Z", "c": 124.00},
+                ]
+            },
+        )
+
+    monkeypatch.setattr("visualization.portfolio.requests.get", fake_get)
+
+    result = get_stock_bars(
+        ["AAPL"],
+        pd.Timestamp("2026-08-14T20:00:00Z"),
+        pd.Timestamp("2026-08-15T20:00:00Z"),
+        "5Min",
+    )
+
+    assert feed_calls[:2] == ["iex", "sip"]
+    assert len(result) == 2
+    assert set(result["symbol"]) == {"AAPL"}
