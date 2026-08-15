@@ -98,6 +98,69 @@ def get_trading_client():
 # GENERAL HELPERS
 # ============================================================
 
+def compute_range_return_pct(df):
+    """Compute a chart-friendly return series for a range window.
+
+    Alpaca's account portfolio history may contain placeholder zero values
+    before the account first holds a non-zero equity position. Those zeroes are
+    not real returns and should not be treated as a new baseline. We therefore:
+
+    1. keep explicit, meaningful API return percentages when present,
+    2. otherwise derive a return series from the first valid equity point in the
+       selected range,
+    3. leave leading zero/empty placeholders at 0.0 instead of turning them into
+       artificial -100% returns.
+    """
+
+    if df is None or df.empty:
+        return pd.Series(dtype=float)
+
+    equity = pd.to_numeric(
+        df["equity"],
+        errors="coerce",
+    )
+
+    raw_profit_loss_pct = pd.to_numeric(
+        df.get("profit_loss_pct", pd.Series(np.nan, index=df.index)),
+        errors="coerce",
+    )
+
+    result = pd.Series(
+        0.0,
+        index=df.index,
+        dtype=float,
+    )
+
+    valid_api_pct = raw_profit_loss_pct.notna() & (
+        ~np.isclose(raw_profit_loss_pct, 0.0, atol=1e-9)
+    )
+
+    if valid_api_pct.any():
+        result.loc[valid_api_pct] = raw_profit_loss_pct.loc[valid_api_pct]
+
+    positive_equity = equity[equity > 0]
+
+    if not positive_equity.empty:
+        baseline_equity = float(positive_equity.iloc[0])
+
+        equity_based_return = pd.Series(
+            0.0,
+            index=df.index,
+            dtype=float,
+        )
+
+        equity_positive_mask = equity > 0
+        equity_based_return.loc[equity_positive_mask] = (
+            equity.loc[equity_positive_mask] / baseline_equity - 1.0
+        ) * 100.0
+
+        result.loc[equity_positive_mask & ~valid_api_pct] = (
+            equity_based_return.loc[equity_positive_mask & ~valid_api_pct]
+        )
+
+    return result.round(8)
+
+
 def utc_now():
     """Return current UTC timestamp."""
 
@@ -450,50 +513,16 @@ def get_portfolio_history(
         .reset_index(drop=True)
     )
 
-    # --------------------------------------------------------
-    # Calculate fallback return.
-    #
-    # IMPORTANT:
-    # Keep this calculation independent of any
-    # current_value variable. This prevents the
-    # NameError that is currently crashing /api/portfolio_chart.
-    # --------------------------------------------------------
+    df["return_pct"] = compute_range_return_pct(df)
 
-    positive_equity = df.loc[
-        df["equity"] > 0,
-        "equity",
-    ]
-
-    if not positive_equity.empty:
-
-        base_equity = float(
-            positive_equity.iloc[0]
-        )
-
-        df["fallback_return_pct"] = (
-            df["equity"]
-            / base_equity
-            - 1.0
-        ) * 100
-
-    else:
-
-        df["fallback_return_pct"] = 0.0
-
-    df["return_pct"] = (
-        df["profit_loss_pct"]
-        .where(
-            df["profit_loss_pct"].notna(),
-            df["fallback_return_pct"],
-        )
-        .fillna(0.0)
+    first_valid_idx = (
+        df.index[df["equity"].gt(0)].min()
+        if (df["equity"] > 0).any()
+        else None
     )
 
-    df.drop(
-        columns=["fallback_return_pct"],
-        inplace=True,
-        errors="ignore",
-    )
+    if first_valid_idx is not None:
+        df = df.loc[df.index >= first_valid_idx].copy().reset_index(drop=True)
 
     return df
 

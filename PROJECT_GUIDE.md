@@ -1,6 +1,6 @@
 # Project Guide — Multi-Agent Paper Trading System
 
-> **Last updated:** 2026-08-11  
+> **Last updated:** 2026-08-14  
 > **Project root:** C:\Users\malav\OneDrive_San Francisco State University\Desktop\claude alpaca
 
 ---
@@ -77,7 +77,11 @@ Data     EMA,etc.)   Beta)                         + Strategies           Synthe
 - **`optimization/`** — Ensemble strategy weight optimization (`ensemble.py`).
 - **`reporting/`** — Summary report builders (`daily_report.py`).
 - **`backtesting/`** — Historical simulation engine and report generator (`engine.py`, `report.py`).
+- **`visualization/`** — Portfolio performance data builders and chart preparation logic (`portfolio.py`) used by the dashboard API and Chart.js frontend.
+- **`data/`** — Market data providers, cache, validation, and Alpaca/Finnhub adapter layer.
+- **`static/`** — Front-end dashboard assets, including JS chart logic and CSS styling.
 - **`templates/`** — Single-page dashboard UI (`index.html`) featuring Chart.js charts, Group Chat workspace, API diagnostic bar, and educational modals.
+- **`tests/`** — Regression tests for portfolio math and chart range correctness (`test_portfolio_return_calculations.py`).
 
 ---
 
@@ -89,6 +93,9 @@ Data     EMA,etc.)   Beta)                         + Strategies           Synthe
 - **`orchestrator.py`**: Central pub/sub coordinator featuring `MessageBus` with session filtering, `analyze_symbol()` pipeline, and autonomous background loop.
 - **`memory/reasoning.py`**: `ReasoningEngine` powered by Gemini LLM that synthesizes structured trade rationale, bullish/bearish thesis, and step-by-step math.
 - **`agents/execution_agent.py`**: Aggregates 5 strategy votes and 6 agent outputs into final trade decisions, attaches AI reasoning, and executes paper orders via Alpaca.
+- **`visualization/portfolio.py`**: Builds portfolio history, range-based return calculations, and chart-ready account data used by the dashboard performance graph.
+- **`static/js/dashboard.js`**: Main browser-side portfolio and dashboard logic for chart rendering, range selection, mode selection, and live refresh behavior.
+- **`tests/test_portfolio_return_calculations.py`**: Regression tests that verify range-specific portfolio returns, placeholder-zero handling, and chart baseline correctness.
 
 ---
 
@@ -150,3 +157,26 @@ pip install -r requirements.txt
 python app.py
 # → Open http://127.0.0.1:5000/
 ```
+
+---
+
+## Recent Major Improvements
+
+### Portfolio chart stability and range accuracy
+
+- Fixed the range-selection synchronization issue so the selected range label, active button state, and the requested portfolio chart data all match the same normalized value.
+- Corrected the portfolio percentage calculation for longer ranges so it no longer produced distorted values from placeholder zero-equity rows at the start of the account history.
+- Added a proper baseline for returning performance data so 1M, 2M, 3M, 6M, 1Y, and All behave like valid trading-period performance windows instead of mismatched, rebased datasets.
+- Added regression tests to ensure the return calculation stays stable and the chart baselines remain meaningful as the project evolves.
+
+### Newly added / validated files
+
+- `visualization/portfolio.py` — portfolio history and chart-return calculation logic.
+- `static/js/dashboard.js` — dashboard and portfolio chart behavior for range and mode updates.
+- `tests/test_portfolio_return_calculations.py` — focused regression coverage for chart baseline correctness.
+
+### Missing/under-documented areas added to the project guide
+
+- `visualization/` folder was missing from the documented project layout and is now included.
+- `static/` assets and front-end JS logic are now documented as part of the dashboard architecture.
+- `tests/` was added to the project overview because regression coverage is now an active part of the repository.
