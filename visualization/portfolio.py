@@ -99,41 +99,76 @@ def get_trading_client():
 # ============================================================
 
 def compute_range_return_pct(df):
-    """Compute period return % from the first valid equity point in the range.
+    """
+    Compute return relative to the first actual portfolio-history
+    observation in the selected/effective range.
 
-    Standard portfolio chart convention: the first in-range equity observation
-    is the 0% baseline, and each later point shows total return over the
-    selected window, e.g. (equity / equity_start - 1) * 100.
+    For a new account, the first available equity observation becomes
+    the 0% baseline. This is important for ranges such as 2M, 3M,
+    6M, and 1Y when the account itself is younger than the requested
+    range.
 
-    Alpaca's profit_loss_pct uses its own base_value (prior close for
-    intraday, etc.) and must not be mixed with this range-relative series.
-    Leading zero-equity placeholders stay at 0.0.
+    Example:
+
+        Requested range: 1Y
+        Account history: 45 days
+
+        First available equity = $10,000
+        Current equity = $10,800
+
+        Return = +8.0%
+
+    We do NOT manufacture data for the missing 11+ months.
     """
 
     if df is None or df.empty:
-        return pd.Series(dtype=float)
+        return pd.Series(
+            dtype=float,
+            index=df.index if df is not None else None,
+        )
+
+    work = df.copy()
+
+    work = work.sort_values(
+        "timestamp"
+    ).reset_index(drop=True)
 
     equity = pd.to_numeric(
-        df["equity"],
+        work["equity"],
         errors="coerce",
     )
 
     result = pd.Series(
         0.0,
-        index=df.index,
+        index=work.index,
         dtype=float,
     )
 
-    positive_equity = equity[equity > 0]
+    valid_equity_mask = (
+        equity.notna()
+        & equity.gt(0)
+    )
 
-    if positive_equity.empty:
+    if not valid_equity_mask.any():
         return result
 
-    baseline_equity = float(positive_equity.iloc[0])
-    equity_positive_mask = equity > 0
+    first_valid_position = (
+        valid_equity_mask
+        .to_numpy()
+        .nonzero()[0][0]
+    )
 
-    result.loc[equity_positive_mask] = (
-        equity.loc[equity_positive_mask] / baseline_equity - 1.0
+    baseline_equity = float(
+        equity.iloc[first_valid_position]
+    )
+
+    if abs(baseline_equity) < 1e-10:
+        return result
+
+    result.loc[valid_equity_mask] = (
+        equity.loc[valid_equity_mask]
+        / baseline_equity
+        - 1.0
     ) * 100.0
 
     return result.round(8)
@@ -242,6 +277,54 @@ def get_range_start(
 
     return now - pd.Timedelta(
         days=RANGE_DAYS[selected_range]
+    )
+
+def clamp_range_start_to_available_data(
+    requested_start,
+    portfolio_df,
+):
+    """
+    Clamp the requested chart start to the first actual portfolio
+    history point available from Alpaca.
+
+    Example:
+        Requested 1Y start = 2025-08-15
+        Account history begins = 2026-07-01
+
+        Effective start = 2026-07-01
+
+    This prevents a new account from pretending that it has a full
+    1Y / 6M / 3M / 2M history when Alpaca does not have those points.
+    """
+
+    requested_start = normalize_timestamp(
+        requested_start
+    )
+
+    if (
+        portfolio_df is None
+        or portfolio_df.empty
+        or "timestamp" not in portfolio_df.columns
+    ):
+        return requested_start
+
+    valid_timestamps = (
+        pd.to_datetime(
+            portfolio_df["timestamp"],
+            utc=True,
+            errors="coerce",
+        )
+        .dropna()
+    )
+
+    if valid_timestamps.empty:
+        return requested_start
+
+    first_available = valid_timestamps.min()
+
+    return max(
+        requested_start,
+        normalize_timestamp(first_available),
     )
 
 
@@ -530,14 +613,36 @@ def get_portfolio_history(
 
     df["return_pct"] = compute_range_return_pct(df)
 
-    first_valid_idx = (
-        df.index[df["equity"].gt(0)].min()
-        if (df["equity"] > 0).any()
-        else None
+    # --------------------------------------------------------
+    # Remove leading zero-equity observations.
+    #
+    # Alpaca can return zero-value observations before an account
+    # is funded. Those observations should not become the return
+    # baseline.
+    # --------------------------------------------------------
+
+    positive_equity_mask = (
+        pd.to_numeric(
+            df["equity"],
+            errors="coerce",
+        )
+        .gt(0)
     )
 
-    if first_valid_idx is not None:
-        df = df.loc[df.index >= first_valid_idx].copy().reset_index(drop=True)
+    if positive_equity_mask.any():
+
+        first_valid_idx = (
+            positive_equity_mask
+            .idxmax()
+        )
+
+        df = (
+            df.loc[
+                first_valid_idx:
+            ]
+            .copy()
+            .reset_index(drop=True)
+        )
 
     return df
 
@@ -1168,7 +1273,7 @@ def get_portfolio_chart(
             "timestamp"
         ].min()
 
-    range_start = get_range_start(
+    requested_range_start = get_range_start(
         selected_range,
         first_trade_time,
     )
@@ -1178,6 +1283,34 @@ def get_portfolio_chart(
     timeframe = TIMEFRAME_BY_RANGE.get(
         selected_range,
         "5Min",
+    )
+
+    # --------------------------------------------------------
+    # Account-level portfolio history.
+    #
+    # This is the primary portfolio-value line and we request
+    # the full user-selected range first. Alpaca may return
+    # less history if the account is new.
+    # --------------------------------------------------------
+
+    portfolio_df = get_portfolio_history(
+        requested_range_start,
+        range_end,
+        timeframe,
+    )
+
+    # --------------------------------------------------------
+    # Clamp the requested chart start to the first actual
+    # portfolio-history point available from Alpaca.
+    # --------------------------------------------------------
+
+    range_start = clamp_range_start_to_available_data(
+        requested_start=requested_range_start,
+        portfolio_df=portfolio_df,
+    )
+
+    is_partial_range = (
+        range_start > requested_range_start
     )
 
     # --------------------------------------------------------
@@ -1232,19 +1365,7 @@ def get_portfolio_chart(
     )
 
     # --------------------------------------------------------
-    # Account-level portfolio history.
-    #
-    # This is the primary portfolio-value line.
-    # --------------------------------------------------------
 
-    portfolio_df = get_portfolio_history(
-        range_start,
-        range_end,
-        timeframe,
-    )
-
-    # --------------------------------------------------------
-    # Build account-level output.
     # --------------------------------------------------------
 
     labels = []
@@ -1508,39 +1629,50 @@ def get_portfolio_chart(
 
         "range": selected_range,
 
+        # Requested by the user.
+        "requested_start": requested_range_start.isoformat(),
+
+        # Actual first point available from Alpaca.
         "start": range_start.isoformat(),
 
         "end": range_end.isoformat(),
 
         "timeframe": timeframe,
 
+        "is_partial_range": bool(
+            is_partial_range
+        ),
+
+        "available_days": max(
+            0,
+            int(
+                (
+                    range_end - range_start
+                ).total_seconds()
+                / 86400
+            )
+        ),
+
         "symbols": symbols,
 
-        # Simple timestamp/value arrays
         "labels": labels,
         "portfolio": portfolio_values,
         "return_pct": return_values,
 
-        # Explicit portfolio point objects
-        # This is the preferred frontend representation.
         "portfolio_data": portfolio_data,
 
-        # Current account values
         "current_value": float(current_value),
 
         "current_return_pct": float(
             current_return_pct
         ),
 
-        # Complete chart series
         "series": series,
 
-        # BUY / SELL markers
         "markers": markers,
 
         "trade_count": len(markers),
 
-        # Explicit data availability
         "has_data": bool(
             len(portfolio_data) > 0
         ),
@@ -1549,7 +1681,6 @@ def get_portfolio_chart(
             portfolio_data
         ),
     }
-
 
 # ============================================================
 # OPTIONAL FIGURE BUILDER

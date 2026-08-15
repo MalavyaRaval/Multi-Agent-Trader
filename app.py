@@ -28,6 +28,7 @@ from visualization.portfolio import (
     get_stock_bars,
     get_range_start,
     get_portfolio_history,
+    clamp_range_start_to_available_data,
     build_position_history,
     build_performance_dataframe,
     create_trade_markers_data,
@@ -518,27 +519,26 @@ def api_portfolio_chart():
 
         fills = get_all_fills()
 
-        first_trade_time = (
-            fills["timestamp"].min()
-            if not fills.empty
-            else None
-        )
-
-        range_start = get_range_start(
-            selected_range,
-            first_trade_time,
-        )
-
         range_end = utc_now()
+
+        requested_range_start = get_range_start(
+            selected_range,
+            None,
+        )
 
         timeframe = TIMEFRAME_BY_RANGE[
             selected_range
         ]
 
         portfolio_history = get_portfolio_history(
-            range_start,
+            requested_range_start,
             range_end,
             timeframe,
+        )
+
+        range_start = clamp_range_start_to_available_data(
+            requested_start=requested_range_start,
+            portfolio_df=portfolio_history,
         )
 
         portfolio_data = build_portfolio_payload(
