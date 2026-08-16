@@ -3237,6 +3237,15 @@ const portfolioChartState = {
     symbols: []
 };
 
+const portfolioChartModeLabels = {
+    return: "% change from starting date",
+    normalized: "Normalized price (start = 100)",
+    price: "Actual stock price",
+    value: "Portfolio value",
+    pnl: "Dollar profit/loss",
+    marketcap: "Market-cap-adjusted price"
+};
+
 let portfolioCurrentRange = "1D";
 let portfolioSelectedSymbols = new Set(["ALL"]);
 let portfolioRequestInProgress = false;
@@ -3691,6 +3700,7 @@ function renderPortfolioChart(data) {
     }
 
     const datasets = [];
+    const chartMode = String(data?.mode || portfolioChartState.mode || "return").toLowerCase();
 
 
     // --------------------------------------------------------
@@ -3722,9 +3732,17 @@ function renderPortfolioChart(data) {
         if (portfolioData.length > 0) {
             datasets.push({
                 label:
-                    data.mode === "value"
+                    chartMode === "value"
                         ? "Portfolio Value"
-                        : "Portfolio Return",
+                        : chartMode === "price"
+                            ? "Portfolio Price"
+                            : chartMode === "pnl"
+                                ? "Portfolio P/L"
+                                : chartMode === "normalized"
+                                    ? "Normalized Portfolio"
+                                    : chartMode === "marketcap"
+                                        ? "Market-cap-adjusted Portfolio"
+                                        : "Portfolio Return",
 
                 data:
                     portfolioData,
@@ -4082,12 +4100,9 @@ function renderPortfolioChart(data) {
                                             "Value";
 
                                         if (
-                                            data.mode ===
-                                            "return" &&
-                                            label !==
-                                            "Buy" &&
-                                            label !==
-                                            "Sell"
+                                            chartMode === "return" &&
+                                            label !== "Buy" &&
+                                            label !== "Sell"
                                         ) {
                                             const signedValue =
                                                 Number(value) >= 0
@@ -4097,10 +4112,23 @@ function renderPortfolioChart(data) {
                                             return `${label}: ${signedValue}%`;
                                         }
 
-                                        if (data.mode === "value") {
+                                        if (
+                                            chartMode === "value" ||
+                                            chartMode === "pnl"
+                                        ) {
                                             return (
                                                 `${label}: ` +
                                                 formatPortfolioSummaryCurrency(value)
+                                            );
+                                        }
+
+                                        if (
+                                            chartMode === "price" ||
+                                            chartMode === "normalized" ||
+                                            chartMode === "marketcap"
+                                        ) {
+                                            return (
+                                                `${label}: ${Number(value).toFixed(2)}`
                                             );
                                         }
 
@@ -4148,8 +4176,7 @@ function renderPortfolioChart(data) {
                                         value
                                     ) {
                                         if (
-                                            data.mode ===
-                                            "return"
+                                            chartMode === "return"
                                         ) {
                                             const signedValue =
                                                 Number(value) >= 0
@@ -4159,15 +4186,22 @@ function renderPortfolioChart(data) {
                                             return `${signedValue}%`;
                                         }
 
-                                        return Number(
-                                            value
-                                        ).toLocaleString(
-                                            undefined,
-                                            {
-                                                maximumFractionDigits:
-                                                    2
-                                            }
-                                        );
+                                        if (
+                                            chartMode === "value" ||
+                                            chartMode === "pnl"
+                                        ) {
+                                            return formatPortfolioSummaryCurrency(value);
+                                        }
+
+                                        if (chartMode === "price") {
+                                            return Number(value).toLocaleString(undefined, {
+                                                maximumFractionDigits: 2
+                                            });
+                                        }
+
+                                        return Number(value).toLocaleString(undefined, {
+                                            maximumFractionDigits: 2
+                                        });
                                     }
                             },
 
@@ -4344,24 +4378,36 @@ function setPortfolioChartRange(range, button) {
 // ============================================================
 
 function setPortfolioChartMode(mode) {
-    if (!mode) {
+    const validModes = [
+        "return",
+        "normalized",
+        "price",
+        "value",
+        "pnl",
+        "marketcap"
+    ];
+
+    const normalizedMode = String(mode || "return").trim().toLowerCase();
+
+    if (!validModes.includes(normalizedMode)) {
         return;
     }
 
-    portfolioChartState.mode =
-        mode;
+    portfolioChartState.mode = normalizedMode;
 
     document
         .querySelectorAll(
             "[data-portfolio-mode]"
         )
         .forEach(button => {
-            button.classList.toggle(
-                "active",
-                button.dataset
-                    .portfolioMode ===
-                mode
-            );
+            const isActive =
+                (button.dataset.portfolioMode || "")
+                    .trim()
+                    .toLowerCase() === normalizedMode;
+
+            button.classList.toggle("active", isActive);
+            button.classList.toggle("btn-primary", isActive);
+            button.classList.toggle("btn-secondary", !isActive);
         });
 
     loadPortfolioChart();

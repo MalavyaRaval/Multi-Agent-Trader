@@ -406,6 +406,46 @@
                     </div>
 
 
+                    <!-- Y-AXIS MODE -->
+                    <div style="
+                        display:flex;
+                        flex-wrap:wrap;
+                        align-items:center;
+                        gap:6px;
+                        margin-bottom:14px;
+                    ">
+                        <span style="
+                            font-size:0.78rem;
+                            color:var(--text-muted);
+                            margin-right:4px;
+                        ">Y-axis:</span>
+
+                        <button type="button" class="btn btn-primary btn-small portfolio-mode-btn" data-portfolio-mode="return" onclick="setPortfolioChartMode('return', this)">
+                            % change
+                        </button>
+
+                        <button type="button" class="btn btn-secondary btn-small portfolio-mode-btn" data-portfolio-mode="normalized" onclick="setPortfolioChartMode('normalized', this)">
+                            Normalized
+                        </button>
+
+                        <button type="button" class="btn btn-secondary btn-small portfolio-mode-btn" data-portfolio-mode="price" onclick="setPortfolioChartMode('price', this)">
+                            Price
+                        </button>
+
+                        <button type="button" class="btn btn-secondary btn-small portfolio-mode-btn" data-portfolio-mode="value" onclick="setPortfolioChartMode('value', this)">
+                            Portfolio value
+                        </button>
+
+                        <button type="button" class="btn btn-secondary btn-small portfolio-mode-btn" data-portfolio-mode="pnl" onclick="setPortfolioChartMode('pnl', this)">
+                            $ profit/loss
+                        </button>
+
+                        <button type="button" class="btn btn-secondary btn-small portfolio-mode-btn" data-portfolio-mode="marketcap" onclick="setPortfolioChartMode('marketcap', this)">
+                            Market-cap adjusted
+                        </button>
+                    </div>
+
+
                     <!-- SUMMARY -->
                     <div id="portfolio-chart-summary" style="
                         display:grid;

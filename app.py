@@ -429,25 +429,54 @@ def api_portfolio_chart():
         if portfolio_history.empty:
             return portfolio_data
 
-        value_column = (
-            "equity"
-            if chart_mode == "value"
-            else "return_pct"
-        )
+        chart_mode = str(chart_mode or "return").lower()
+
+        if chart_mode in {"value", "portfolio", "portfolio_value"}:
+            value_column = "equity"
+        elif chart_mode in {"pnl", "profit_loss", "dollar_profit_loss", "dollar_pnl"}:
+            value_column = "pnl"
+        elif chart_mode in {"normalized", "normalized_price", "price_index"}:
+            value_column = "normalized"
+        elif chart_mode in {"marketcap", "market_cap", "market_cap_adjusted"}:
+            value_column = "market_cap_adj"
+        else:
+            value_column = "return_pct"
+
+        baseline_equity = None
+        if "equity" in portfolio_history.columns:
+            valid = portfolio_history["equity"].replace([None, np.nan], pd.NA)
+            valid = pd.to_numeric(valid, errors="coerce").dropna()
+            if not valid.empty:
+                baseline_equity = float(valid.iloc[0])
 
         for _, row in portfolio_history.iterrows():
+            equity = float(row["equity"]) if "equity" in row and pd.notna(row["equity"]) else 0.0
+            return_pct = (
+                None if pd.isna(row["return_pct"]) else float(row["return_pct"])
+            )
+
+            normalized_value = None
+            if baseline_equity not in (None, 0):
+                normalized_value = (equity / baseline_equity) * 100.0
+
+            pnl_value = None
+            if baseline_equity is not None:
+                pnl_value = equity - baseline_equity
+
+            value = {
+                "equity": equity,
+                "return_pct": return_pct,
+                "pnl": pnl_value,
+                "normalized": normalized_value,
+                "market_cap_adj": normalized_value,
+            }.get(value_column)
+
             portfolio_data.append({
                 "timestamp": row["timestamp"].isoformat(),
-                "equity": float(row["equity"]),
-                "return_pct": (
-                    None
-                    if pd.isna(row["return_pct"])
-                    else float(row["return_pct"])
-                ),
+                "equity": equity,
+                "return_pct": return_pct,
                 "value": (
-                    None
-                    if pd.isna(row[value_column])
-                    else float(row[value_column])
+                    None if value is None or pd.isna(value) else float(value)
                 ),
             })
 
@@ -495,10 +524,38 @@ def api_portfolio_chart():
         )
         selected_range = (selected_range or "1M").upper()
 
-        chart_mode = request.args.get(
-            "mode",
-            "return",
-        )
+        chart_mode = str(
+            request.args.get(
+                "mode",
+                "return",
+            ) or "return"
+        ).lower()
+
+        chart_mode_aliases = {
+            "percent": "return",
+            "pct": "return",
+            "percent_change": "return",
+            "percentage": "return",
+            "normalized": "normalized",
+            "normalized_price": "normalized",
+            "price_index": "normalized",
+            "price": "price",
+            "actual_price": "price",
+            "value": "value",
+            "portfolio": "value",
+            "portfolio_value": "value",
+            "pnl": "pnl",
+            "profit_loss": "pnl",
+            "dollar_profit_loss": "pnl",
+            "dollar_pnl": "pnl",
+            "marketcap": "marketcap",
+            "market_cap": "marketcap",
+            "market_cap_adjusted": "marketcap",
+            "marketcap_adjusted": "marketcap",
+            "return": "return",
+        }
+
+        chart_mode = chart_mode_aliases.get(chart_mode, "return")
 
         symbols_param = request.args.get(
             "symbols",
@@ -613,7 +670,7 @@ def api_portfolio_chart():
                 else pd.DataFrame()
             )
 
-            if chart_mode == "value":
+            if chart_mode in {"value", "portfolio", "portfolio_value"}:
 
                 df = position_history[
                     position_history["symbol"] == symbol
@@ -628,6 +685,83 @@ def api_portfolio_chart():
                 ] = np.nan
 
                 value_column = "market_value"
+
+            elif chart_mode in {"price", "actual_price"}:
+
+                df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                if "close" in df.columns:
+                    value_column = "close"
+                else:
+                    value_column = "market_value"
+
+            elif chart_mode in {"normalized", "normalized_price", "price_index"}:
+
+                df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                if "close" in df.columns:
+                    first_close = pd.to_numeric(df["close"], errors="coerce").dropna()
+                    if not first_close.empty:
+                        baseline = float(first_close.iloc[0])
+                        if baseline:
+                            df["normalized_price"] = (pd.to_numeric(df["close"], errors="coerce") / baseline) * 100.0
+                            value_column = "normalized_price"
+                        else:
+                            value_column = "close"
+                    else:
+                        value_column = "close"
+                else:
+                    value_column = "market_value"
+
+            elif chart_mode in {"pnl", "profit_loss", "dollar_pnl"}:
+
+                df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                owned = df["qty"].abs() > 1e-10
+                if owned.any():
+                    baseline_market_value = float(df.loc[owned, "market_value"].iloc[0])
+                    df["pnl_value"] = df["market_value"] - baseline_market_value
+                    value_column = "pnl_value"
+                else:
+                    value_column = "market_value"
+
+            elif chart_mode in {"marketcap", "market_cap", "market_cap_adjusted", "marketcap_adjusted"}:
+
+                df = position_history[
+                    position_history["symbol"] == symbol
+                ].copy()
+
+                if df.empty:
+                    continue
+
+                if "close" in df.columns:
+                    first_close = pd.to_numeric(df["close"], errors="coerce").dropna()
+                    if not first_close.empty:
+                        baseline = float(first_close.iloc[0])
+                        if baseline:
+                            df["market_cap_adj"] = (pd.to_numeric(df["close"], errors="coerce") / baseline) * 100.0
+                            value_column = "market_cap_adj"
+                        else:
+                            value_column = "close"
+                    else:
+                        value_column = "close"
+                else:
+                    value_column = "market_value"
 
             else:
 
