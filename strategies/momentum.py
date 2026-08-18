@@ -80,12 +80,14 @@ class MomentumStrategy:
             reasons.append("Positive news supports momentum")
 
         decision, confidence = self._score_to_decision(score)
+        data_status = "ok" if signals else "partial"
         return {
             "strategy": self.name,
             "decision": decision,
             "confidence": round(confidence, 2),
-            "reason": "; ".join(reasons) if reasons else "No clear momentum",
             "raw_score": round(score, 2),
+            "reason": "; ".join(reasons) if reasons else "No clear momentum",
+            "data_status": data_status,
         }
 
     @staticmethod
@@ -94,4 +96,6 @@ class MomentumStrategy:
             return "buy", min(score / 3.0, 1.0)
         if score <= -1.5:
             return "sell", min(abs(score) / 3.0, 1.0)
+        if abs(score) < 1e-9:
+            return "hold", 0.0
         return "hold", max(0.0, 1.0 - abs(score) / 1.5)

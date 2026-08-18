@@ -6,14 +6,23 @@ import numpy as np
 
 def compute_bollinger(series: pd.Series, period: int = 20, std_dev: int = 2):
     """Compute Bollinger Bands from a pandas Series. Returns (upper, lower, middle)."""
-    if len(series) < period:
-        val = float(series.iloc[-1]) if len(series) > 0 else 0.0
-        return val, val, val
+    if series is None or len(series) < period:
+        return None, None, None
+    series = pd.to_numeric(series, errors="coerce")
+    if series.dropna().empty:
+        return None, None, None
     middle = series.rolling(window=period).mean()
     std = series.rolling(window=period).std()
     upper = middle + (std * std_dev)
     lower = middle - (std * std_dev)
-    return float(upper.iloc[-1]), float(lower.iloc[-1]), float(middle.iloc[-1])
+    upper_value = upper.iloc[-1]
+    lower_value = lower.iloc[-1]
+    middle_value = middle.iloc[-1]
+    return (
+        float(upper_value) if pd.notna(upper_value) else None,
+        float(lower_value) if pd.notna(lower_value) else None,
+        float(middle_value) if pd.notna(middle_value) else None,
+    )
 
 
 def calculate_bollinger(prices: list[float], period: int = 20, std_dev: int = 2) -> dict:

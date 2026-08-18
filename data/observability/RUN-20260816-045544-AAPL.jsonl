@@ -1,0 +1,3 @@
+{"run_id": "RUN-20260816-045544-AAPL", "agent": "orchestrator", "event": "run_started", "timestamp": "2026-08-16T04:55:44.444672+00:00", "status": "running", "symbol": "AAPL", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260816-045544-AAPL", "agent": "orchestrator", "event": "analysis_started", "timestamp": "2026-08-16T04:55:44.445722+00:00", "status": "running", "symbol": "AAPL", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260816-045544-AAPL", "agent": "orchestrator", "event": "analysis_completed", "timestamp": "2026-08-16T04:55:44.450400+00:00", "status": "success", "symbol": "AAPL", "endpoint": "analysis_complete", "event_count": 2}

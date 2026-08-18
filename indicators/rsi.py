@@ -6,13 +6,19 @@ import numpy as np
 
 def compute_rsi(series: pd.Series, period: int = 14) -> float:
     """Compute RSI for a pandas Series of closing prices."""
-    if len(series) < period + 1:
-        return 0.0
-    delta = series.diff().dropna()
+    if series is None or len(series) < period + 1:
+        return None
+    if pd.isna(series).all():
+        return None
+    delta = pd.to_numeric(series, errors="coerce").diff().dropna()
+    if len(delta) < period:
+        return None
     gain = delta.where(delta > 0, 0.0)
     loss = (-delta).where(delta < 0, 0.0)
     avg_gain = gain.rolling(window=period, min_periods=period).mean().iloc[-1]
     avg_loss = loss.rolling(window=period, min_periods=period).mean().iloc[-1]
+    if pd.isna(avg_gain) or pd.isna(avg_loss):
+        return None
     if avg_loss == 0 or pd.isna(avg_loss):
         return 100.0
     rs = avg_gain / avg_loss

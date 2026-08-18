@@ -9,6 +9,65 @@ from visualization.portfolio import (
     get_stock_bars,
     summarize_portfolio_period,
 )
+from orchestrator import Orchestrator
+
+
+def test_orchestrator_returns_run_id_for_each_analysis(monkeypatch):
+    orchestrator = Orchestrator()
+
+    class FakeSnapshot:
+        trade = Mock(price=100.0)
+        metrics = {"relative_volume": 1.25, "spread": 0.05}
+
+    monkeypatch.setattr(orchestrator.market, "snapshot", lambda *args, **kwargs: FakeSnapshot())
+    monkeypatch.setattr(
+        orchestrator.technical,
+        "analyze",
+        lambda symbol: {
+            "status": "technical analysis ready",
+            "signals": {
+                "rsi_14": 52.0,
+                "macd": 0.5,
+                "macd_signal": 0.2,
+                "ema_20": 100.5,
+                "ema_50": 99.5,
+                "atr_14": 1.2,
+            },
+        },
+    )
+    monkeypatch.setattr(
+        orchestrator.fundamental,
+        "analyze",
+        lambda symbol: {"status": "fundamental analysis ready", "data": {"pe": 22.0}},
+    )
+    monkeypatch.setattr(
+        orchestrator.news,
+        "analyze",
+        lambda symbol: {"status": "news analysis ready", "articles": [], "sentiment": "neutral"},
+    )
+    monkeypatch.setattr(
+        orchestrator.risk,
+        "analyze",
+        lambda symbol: {"status": "risk analysis ready", "risk_level": "medium", "checks": {}},
+    )
+    monkeypatch.setattr(
+        orchestrator.portfolio,
+        "analyze",
+        lambda symbol: {"status": "portfolio analysis ready", "data": {"equity": 1000.0}},
+    )
+    monkeypatch.setattr(
+        orchestrator.execution,
+        "analyze",
+        lambda symbol, context=None: {"status": "execution analysis ready", "action": "hold", "confidence": 0.1, "reason": "test"},
+    )
+
+    result = orchestrator.analyze_symbol("aapl")
+
+    assert result["run_id"].startswith("RUN-")
+    assert result["symbol"] == "AAPL"
+    assert result["status"] == "completed"
+    assert result["started_at"]
+    assert orchestrator.bus.get_messages(session_id=result["run_id"]) 
 
 
 def test_compute_range_return_pct_uses_first_valid_equity_baseline():
@@ -116,3 +175,35 @@ def test_get_stock_bars_falls_back_to_sip_when_iex_has_no_data(monkeypatch):
     assert feed_calls[:2] == ["iex", "sip"]
     assert len(result) == 2
     assert set(result["symbol"]) == {"AAPL"}
+
+
+def test_neutral_signal_has_low_hold_confidence():
+    from strategies.momentum import MomentumStrategy
+
+    decision, confidence = MomentumStrategy._score_to_decision(0.0)
+
+    assert decision == "hold"
+    assert confidence == 0.0
+
+
+def test_indicator_missing_data_returns_none_not_zero():
+    import pandas as pd
+
+    from indicators.atr import compute_atr
+    from indicators.bollinger import compute_bollinger
+    from indicators.ema import compute_ema
+    from indicators.macd import compute_macd
+    from indicators.rsi import compute_rsi
+    from indicators.volume import compute_volume_signals
+
+    short_close = pd.Series([100.0, 101.0, 102.0])
+    short_high = pd.Series([101.0, 102.0, 103.0])
+    short_low = pd.Series([99.0, 100.0, 101.0])
+    short_volume = pd.Series([1000.0, 1001.0, 1002.0])
+
+    assert compute_rsi(short_close, 14) is None
+    assert compute_ema(short_close, 20) is None
+    assert compute_macd(short_close, slow=26, signal=9) == (None, None, None)
+    assert compute_atr(short_high, short_low, short_close, 14) is None
+    assert compute_bollinger(short_close, 20) == (None, None, None)
+    assert compute_volume_signals(short_volume, short_close) == {"volume_ratio": None, "volume_trend": "neutral"}

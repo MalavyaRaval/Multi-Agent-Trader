@@ -3612,5 +3612,1913 @@
       }
     },
     "recorded_at": "2026-08-14T04:20:26.094515"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.6220000000000001,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend)",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "buy",
+          "confidence": 0.6,
+          "reason": "EMA20 above EMA50 (uptrend); Strong trend distance",
+          "raw_score": 1.5,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "MACD above signal",
+          "raw_score": 0.8,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 1.0499999999999998,
+      "ensemble": {
+        "weighted_score": 0.12,
+        "weighted_confidence": 0.12,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "buy",
+            "confidence": 0.6,
+            "weight": 0.2,
+            "contribution": 0.12
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-16T04:36:29.404330"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.6220000000000001,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend)",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "buy",
+          "confidence": 0.6,
+          "reason": "EMA20 above EMA50 (uptrend); Strong trend distance",
+          "raw_score": 1.5,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "MACD above signal",
+          "raw_score": 0.8,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 1.0499999999999998,
+      "ensemble": {
+        "weighted_score": 0.12,
+        "weighted_confidence": 0.12,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "buy",
+            "confidence": 0.6,
+            "weight": 0.2,
+            "contribution": 0.12
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-16T04:38:29.286667"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T00:54:13.812049"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T00:57:28.547867"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:00:43.057991"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:04:08.981826"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:07:22.461945"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.902,
+    "reason": "Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.75,
+          "reason": "Negative news",
+          "raw_score": -0.3,
+          "name": "swing"
+        }
+      ],
+      "agent_score": -0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.75,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:10:38.369955"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.09799999999999999,
+    "reason": "Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.17,
+          "reason": "Positive news; Already long \u2014 reducing add-on",
+          "raw_score": 0.21,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.17,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:25:49.846684"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.09799999999999999,
+    "reason": "Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear trend",
+          "raw_score": 0.0,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No mean-reversion signal",
+          "raw_score": 0.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.17,
+          "reason": "Positive news; Already long \u2014 reducing add-on",
+          "raw_score": 0.21,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.35,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.17,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:29:27.742750"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.12879999999999997,
+    "reason": "MACD bullish crossover; Price below EMA50 (downtrend); Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "sell",
+          "confidence": 0.48,
+          "reason": "EMA20 below EMA50 (downtrend); Strong downtrend distance",
+          "raw_score": -1.2,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "Overbought (RSI 69.4)",
+          "raw_score": -1.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.58,
+          "reason": "RSI in swing-sell zone (69.4); MACD above signal; Positive news",
+          "raw_score": -0.5,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.7,
+      "ensemble": {
+        "weighted_score": -0.096,
+        "weighted_confidence": 0.096,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "sell",
+            "confidence": 0.48,
+            "weight": 0.2,
+            "contribution": -0.096
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.58,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:39:47.584428"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.12879999999999997,
+    "reason": "MACD bullish crossover; Price below EMA50 (downtrend); Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "sell",
+          "confidence": 0.48,
+          "reason": "EMA20 below EMA50 (downtrend); Strong downtrend distance",
+          "raw_score": -1.2,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "Overbought (RSI 69.4)",
+          "raw_score": -1.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.58,
+          "reason": "RSI in swing-sell zone (69.4); MACD above signal; Positive news",
+          "raw_score": -0.5,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.7,
+      "ensemble": {
+        "weighted_score": -0.096,
+        "weighted_confidence": 0.096,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "sell",
+            "confidence": 0.48,
+            "weight": 0.2,
+            "contribution": -0.096
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.58,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:43:04.599406"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.12879999999999997,
+    "reason": "MACD bullish crossover; Price below EMA50 (downtrend); Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "sell",
+          "confidence": 0.48,
+          "reason": "EMA20 below EMA50 (downtrend); Strong downtrend distance",
+          "raw_score": -1.2,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "Overbought (RSI 69.4)",
+          "raw_score": -1.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.58,
+          "reason": "RSI in swing-sell zone (69.4); MACD above signal; Positive news",
+          "raw_score": -0.5,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.7,
+      "ensemble": {
+        "weighted_score": -0.096,
+        "weighted_confidence": 0.096,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "sell",
+            "confidence": 0.48,
+            "weight": 0.2,
+            "contribution": -0.096
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.58,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:46:19.990081"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.12879999999999997,
+    "reason": "MACD bullish crossover; Price below EMA50 (downtrend); Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "sell",
+          "confidence": 0.48,
+          "reason": "EMA20 below EMA50 (downtrend); Strong downtrend distance",
+          "raw_score": -1.2,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "Overbought (RSI 69.4)",
+          "raw_score": -1.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.58,
+          "reason": "RSI in swing-sell zone (69.4); MACD above signal; Positive news",
+          "raw_score": -0.5,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.7,
+      "ensemble": {
+        "weighted_score": -0.096,
+        "weighted_confidence": 0.096,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "sell",
+            "confidence": 0.48,
+            "weight": 0.2,
+            "contribution": -0.096
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.58,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:54:27.925244"
+  },
+  {
+    "type": "analysis",
+    "symbol": "TSLA",
+    "action": "hold",
+    "confidence": 0.12879999999999997,
+    "reason": "MACD bullish crossover; Price below EMA50 (downtrend); Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "reason": "No clear momentum",
+          "raw_score": 0.0,
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "sell",
+          "confidence": 0.48,
+          "reason": "EMA20 below EMA50 (downtrend); Strong downtrend distance",
+          "raw_score": -1.2,
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 0.33,
+          "reason": "Overbought (RSI 69.4)",
+          "raw_score": -1.0,
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "reason": "No breakout signal",
+          "raw_score": 0.0,
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.58,
+          "reason": "RSI in swing-sell zone (69.4); MACD above signal; Positive news",
+          "raw_score": -0.5,
+          "name": "swing"
+        }
+      ],
+      "agent_score": 0.7,
+      "ensemble": {
+        "weighted_score": -0.096,
+        "weighted_confidence": 0.096,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "sell",
+            "confidence": 0.48,
+            "weight": 0.2,
+            "contribution": -0.096
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 0.33,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.58,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T01:57:44.536703"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.10499999999999998,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend); Fundamentals unavailable",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "No clear momentum",
+          "data_status": "ok",
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 0.17,
+          "raw_score": 1.0,
+          "reason": "EMA20 above EMA50 (uptrend)",
+          "data_status": "ok",
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No mean-reversion signal",
+          "data_status": "ok",
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No breakout signal",
+          "data_status": "ok",
+          "name": "breakout"
+        }
+      ],
+      "agent_score": 1.0499999999999998,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 0.17,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T02:00:36.067492"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "buy",
+    "confidence": 0.28259999999999996,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend); Fundamentals look good; Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "No clear momentum",
+          "data_status": "ok",
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "buy",
+          "confidence": 0.52,
+          "raw_score": 1.3,
+          "reason": "EMA20 above EMA50 (uptrend); Volume supports uptrend",
+          "data_status": "ok",
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No mean-reversion signal",
+          "data_status": "ok",
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No breakout signal",
+          "data_status": "ok",
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "buy",
+          "confidence": 0.56,
+          "raw_score": 1.4,
+          "reason": "MACD above signal; Fundamentals: +1; Positive news",
+          "data_status": "ok",
+          "name": "swing"
+        }
+      ],
+      "agent_score": 2.25,
+      "ensemble": {
+        "weighted_score": 0.216,
+        "weighted_confidence": 0.216,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "buy",
+            "confidence": 0.52,
+            "weight": 0.2,
+            "contribution": 0.104
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "buy",
+            "confidence": 0.56,
+            "weight": 0.2,
+            "contribution": 0.112
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T02:01:07.279905"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "hold",
+    "confidence": 0.13,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend); Fundamentals unavailable",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "No clear momentum",
+          "data_status": "ok",
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 0.17,
+          "raw_score": 1.0,
+          "reason": "EMA20 above EMA50 (uptrend)",
+          "data_status": "ok",
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No mean-reversion signal",
+          "data_status": "ok",
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No breakout signal",
+          "data_status": "ok",
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "Strategy evaluation error: unsupported operand type(s) for *: 'NoneType' and 'float'",
+          "data_status": "data_missing"
+        }
+      ],
+      "agent_score": 1.0499999999999998,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 0.17,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T02:13:50.025482"
+  },
+  {
+    "type": "analysis",
+    "symbol": "AAPL",
+    "action": "buy",
+    "confidence": 0.28259999999999996,
+    "reason": "MACD bullish crossover; Price above EMA50 (uptrend); Fundamentals look good; Positive news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "No clear momentum",
+          "data_status": "ok",
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "buy",
+          "confidence": 0.52,
+          "raw_score": 1.3,
+          "reason": "EMA20 above EMA50 (uptrend); Volume supports uptrend",
+          "data_status": "ok",
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No mean-reversion signal",
+          "data_status": "ok",
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No breakout signal",
+          "data_status": "ok",
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "buy",
+          "confidence": 0.56,
+          "raw_score": 1.4,
+          "reason": "MACD above signal; Fundamentals: +1; Positive news",
+          "data_status": "ok",
+          "name": "swing"
+        }
+      ],
+      "agent_score": 2.25,
+      "ensemble": {
+        "weighted_score": 0.216,
+        "weighted_confidence": 0.216,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "buy",
+            "confidence": 0.52,
+            "weight": 0.2,
+            "contribution": 0.104
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "buy",
+            "confidence": 0.56,
+            "weight": 0.2,
+            "contribution": 0.112
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T02:14:00.836768"
+  },
+  {
+    "type": "analysis",
+    "symbol": "META",
+    "action": "hold",
+    "confidence": 0.13,
+    "reason": "MACD bearish crossover; Price below EMA50 (downtrend); Negative news sentiment",
+    "analyses": {
+      "strategies": [
+        {
+          "strategy": "momentum",
+          "decision": "hold",
+          "confidence": 0.0,
+          "raw_score": 0.0,
+          "reason": "No clear momentum",
+          "data_status": "ok",
+          "name": "momentum"
+        },
+        {
+          "strategy": "trend_following",
+          "decision": "hold",
+          "confidence": 0.42,
+          "raw_score": -0.7,
+          "reason": "EMA20 below EMA50 (downtrend)",
+          "data_status": "ok",
+          "name": "trend_following"
+        },
+        {
+          "strategy": "mean_reversion",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No mean-reversion signal",
+          "data_status": "ok",
+          "name": "mean_reversion"
+        },
+        {
+          "strategy": "breakout",
+          "decision": "hold",
+          "confidence": 1.0,
+          "raw_score": 0.0,
+          "reason": "No breakout signal",
+          "data_status": "ok",
+          "name": "breakout"
+        },
+        {
+          "strategy": "swing",
+          "decision": "hold",
+          "confidence": 0.92,
+          "raw_score": -0.1,
+          "reason": "RSI in swing-buy zone (43.3); MACD below signal; Negative news",
+          "data_status": "ok",
+          "name": "swing"
+        }
+      ],
+      "agent_score": -1.4,
+      "ensemble": {
+        "weighted_score": 0.0,
+        "weighted_confidence": 0.0,
+        "breakdown": [
+          {
+            "strategy": "momentum",
+            "decision": "hold",
+            "confidence": 0.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "trend_following",
+            "decision": "hold",
+            "confidence": 0.42,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "mean_reversion",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "breakout",
+            "decision": "hold",
+            "confidence": 1.0,
+            "weight": 0.2,
+            "contribution": 0.0
+          },
+          {
+            "strategy": "swing",
+            "decision": "hold",
+            "confidence": 0.92,
+            "weight": 0.2,
+            "contribution": 0.0
+          }
+        ],
+        "weights_used": {}
+      }
+    },
+    "recorded_at": "2026-08-18T02:29:35.823015"
   }
 ]

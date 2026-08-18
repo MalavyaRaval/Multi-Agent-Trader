@@ -78,12 +78,14 @@ class BreakoutStrategy:
                 reasons.append("RSI supports breakdown continuation")
 
         decision, confidence = self._score_to_decision(score)
+        data_status = "ok" if signals else "partial"
         return {
             "strategy": self.name,
             "decision": decision,
             "confidence": round(confidence, 2),
-            "reason": "; ".join(reasons) if reasons else "No breakout signal",
             "raw_score": round(score, 2),
+            "reason": "; ".join(reasons) if reasons else "No breakout signal",
+            "data_status": data_status,
         }
 
     @staticmethod

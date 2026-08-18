@@ -70,12 +70,14 @@ class MeanReversionStrategy:
                 reasons.append("Volume spike on rally (possible top)")
 
         decision, confidence = self._score_to_decision(score)
+        data_status = "ok" if signals else "partial"
         return {
             "strategy": self.name,
             "decision": decision,
             "confidence": round(confidence, 2),
-            "reason": "; ".join(reasons) if reasons else "No mean-reversion signal",
             "raw_score": round(score, 2),
+            "reason": "; ".join(reasons) if reasons else "No mean-reversion signal",
+            "data_status": data_status,
         }
 
     @staticmethod

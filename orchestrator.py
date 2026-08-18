@@ -28,6 +28,7 @@ from agents.risk_agent import RiskAgent
 from agents.execution_agent import ExecutionAgent
 from agents.portfolio_agent import PortfolioAgent
 from indicators.multiframe import analyze_multiframe
+from observability import RunTracker
 
 load_dotenv()
 
@@ -127,9 +128,17 @@ class Orchestrator:
         self.risk = RiskAgent()
         self.execution = ExecutionAgent()
         self.portfolio = PortfolioAgent()
+        self.run_tracker = RunTracker()
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._last_analysis: Optional[Dict[str, Any]] = None
+
+    @staticmethod
+    def generate_run_id(symbol: str) -> str:
+        """Generate a unique, human-readable run identifier for an analysis cycle."""
+        now = datetime.utcnow()
+        stamp = now.strftime("%Y%m%d-%H%M%S")
+        return f"RUN-{stamp}-{symbol.upper()}"
 
     # ------------------------------------------------------------------
     # Public API
@@ -138,7 +147,18 @@ class Orchestrator:
     def analyze_symbol(self, symbol: str, auto_execute: bool = False) -> Dict[str, Any]:
         """Run the full multi-agent analysis pipeline on a symbol with rich telemetry."""
         symbol = symbol.upper()
-        session_id = f"{symbol}_{int(time.time()*1000)}"
+        run_id = self.generate_run_id(symbol)
+        session_id = run_id
+        started_at = datetime.utcnow().isoformat()
+        self.run_tracker.start_run(symbol, run_id=run_id)
+        self.run_tracker.emit_event(
+            "orchestrator",
+            "analysis_started",
+            run_id=run_id,
+            symbol=symbol,
+            status="running",
+            endpoint="analysis_start",
+        )
 
         self.bus.publish(
             "orchestrator", "all",
@@ -147,6 +167,47 @@ class Orchestrator:
         )
 
         analyses: Dict[str, Dict] = {}
+
+        def emit_data_quality_summary(symbol: str, market: Dict[str, Any], technical: Dict[str, Any], fundamental: Dict[str, Any], news: Dict[str, Any], risk: Dict[str, Any], portfolio: Dict[str, Any]) -> None:
+            print("\n========== DATA QUALITY SUMMARY ==========")
+            print(f"Symbol: {symbol}")
+            market_metrics = (market or {}).get("metrics", {}) if isinstance(market, dict) else {}
+            quote = (market or {}).get("quote") if isinstance(market, dict) else None
+            market_status = "OK" if market_metrics else "INVALID"
+            price = getattr(quote, "bid_price", None)
+            if quote and getattr(quote, "ask_price", None) is not None:
+                price = getattr(quote, "ask_price", None)
+            spread = market_metrics.get("spread")
+            spread_pct = market_metrics.get("spread_percent")
+            rel_vol = market_metrics.get("relative_volume")
+            print(f"MARKET: price={price if price is not None else 'N/A'} bid={getattr(quote,'bid_price',None) if quote else 'N/A'} ask={getattr(quote,'ask_price',None) if quote else 'N/A'} spread={spread if spread is not None else 'N/A'} spread_percent={spread_pct if spread_pct is not None else 'N/A'} relative_volume={rel_vol if rel_vol is not None else 'N/A'} status={market_status}")
+
+            signals = (technical or {}).get("signals", {}) if isinstance(technical, dict) else {}
+            technical_status = (technical or {}).get("status", "INVALID") if isinstance(technical, dict) else "INVALID"
+            print(f"TECHNICAL: RSI={signals.get('rsi_14')} MACD={signals.get('macd')} MACD_SIGNAL={signals.get('macd_signal')} MACD_HIST={signals.get('macd_hist')} EMA20={signals.get('ema_20')} EMA50={signals.get('ema_50')} ATR={signals.get('atr_14')} status={technical_status.upper()}")
+
+            pe = (fundamental or {}).get("pe") if isinstance(fundamental, dict) else None
+            eps = (fundamental or {}).get("eps") if isinstance(fundamental, dict) else None
+            beta = (fundamental or {}).get("beta") if isinstance(fundamental, dict) else None
+            score = (fundamental or {}).get("score") if isinstance(fundamental, dict) else None
+            fund_status = (fundamental or {}).get("status", "INVALID") if isinstance(fundamental, dict) else "INVALID"
+            print(f"FUNDAMENTAL: PE={pe} EPS={eps} Beta={beta} valuation_score={score} status={fund_status.upper()}")
+
+            articles = (news or {}).get("articles", []) if isinstance(news, dict) else []
+            sentiment = (news or {}).get("sentiment", "neutral") if isinstance(news, dict) else "neutral"
+            sentiment_score = (news or {}).get("sentiment_score", 0) if isinstance(news, dict) else 0
+            print(f"NEWS: headline_count={len(articles)} sentiment={sentiment} sentiment_score={sentiment_score} status=OK")
+
+            risk_level = (risk or {}).get("risk_level", "unknown") if isinstance(risk, dict) else "unknown"
+            atr_pct = (risk or {}).get("atr_percent") if isinstance(risk, dict) else None
+            risk_status = (risk or {}).get("status", "INVALID") if isinstance(risk, dict) else "INVALID"
+            print(f"RISK: risk_level={risk_level} ATR_percent={atr_pct} status={risk_status.upper()}")
+
+            pos = (portfolio or {}).get("position", {}) if isinstance(portfolio, dict) else {}
+            qty = pos.get("qty") if isinstance(pos, dict) else None
+            avg_price = pos.get("avg_entry_price") if isinstance(pos, dict) else None
+            print(f"PORTFOLIO: position_qty={qty} avg_price={avg_price} status=OK")
+            print("===========================================\n")
 
         # 1. Market data
         self.bus.publish(
@@ -302,7 +363,7 @@ class Orchestrator:
             session_id=session_id, symbol=symbol, category="agent_dialogue"
         )
         try:
-            risk = self.risk.analyze(symbol)
+            risk = self.risk.analyze(symbol, context=analyses)
             analyses["risk"] = risk
             risk_level = risk.get("risk_level", "medium")
             atr_pct = risk.get("checks", {}).get("atr_percent")
@@ -427,13 +488,27 @@ class Orchestrator:
                     session_id=session_id, symbol=symbol, category="api_diagnostic", status_code="error"
                 )
 
+        self.run_tracker.emit_event(
+            "orchestrator",
+            "analysis_completed",
+            run_id=run_id,
+            symbol=symbol,
+            status="success",
+            endpoint="analysis_complete",
+            event_count=len(self.run_tracker.get_events(run_id)),
+        )
+
         result = {
+            "run_id": run_id,
             "session_id": session_id,
             "symbol": symbol,
+            "started_at": started_at,
             "timestamp": datetime.utcnow().isoformat(),
+            "status": "completed",
             "analyses": analyses,
             "auto_trade": auto_result,
             "messages": self.bus.get_messages(session_id=session_id),
+            "observability": self.run_tracker.summary(run_id),
         }
         self._last_analysis = result
         return result

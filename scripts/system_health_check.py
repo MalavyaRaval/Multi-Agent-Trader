@@ -79,6 +79,17 @@ def run_test(module) -> Dict[str, Any]:
 def _count_checks(section: Dict[str, Any]) -> Dict[str, int]:
     checks = section.get("checks", [])
 
+    if not checks and section.get("status"):
+        bucket = section["status"].upper()
+        counts = {"pass": 0, "warning": 0, "fail": 0}
+        if bucket == "FAIL":
+            counts["fail"] = 1
+        elif bucket == "WARNING":
+            counts["warning"] = 1
+        else:
+            counts["pass"] = 1
+        return counts
+
     return {
         "pass": sum(
             1 for check in checks

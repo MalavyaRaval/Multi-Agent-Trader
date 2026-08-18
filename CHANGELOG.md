@@ -1,28 +1,41 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## 2026-08-16
 
-### Added
-- Added a dedicated regression test file for the portfolio performance range logic:
-  - `tests/test_portfolio_return_calculations.py`
-- Documented the portfolio visualization/data layer in the project guide so the chart pipeline is clearer to future contributors.
-- Clarified the project structure to include the visualization, static, and test folders that were previously under-documented.
+### Phase 0 — Baseline health audit
+- Implemented the full Phase 0 health-check suite for Alpaca, Finnhub, Gemini, indicator internals, and the pipeline.
+- Fixed the feed-selection bug in the Alpaca health script so the report correctly handles an invalid or missing `ALPACA_DATA_FEED` without crashing.
+- Corrected aggregate service accounting so a broken service is reflected properly in the overall health summary.
+- Marked the Phase 0 milestone as complete in the roadmap.
 
-### Fixed
-- Fixed the portfolio chart range state synchronization so the selected range, button active state, and chart fetch all use the same normalized value.
-- Fixed the portfolio return calculation for longer windows so placeholder zero-equity rows no longer distort return percentages for 2M, 3M, 6M, 1Y, and All ranges.
-- Corrected the return baseline logic to use the first valid non-zero equity value and avoid synthetic or misleading performance values at the beginning of the selected window.
-- Improved the professional trading-style chart behavior by keeping each range window anchored to a meaningful real trading baseline instead of an artificial placeholder start.
+### Phase 1 — Run IDs and observability foundation
+ - Added a unique run identifier to each analysis cycle using the format `RUN-YYYYMMDD-HHMMSS-SYMBOL`.
+ - The run ID is now shared across the orchestrator session, agent message bus, and final API payload.
+ - Added a regression test to lock in the behavior and prevent reintroducing the missing run-id contract.
+ - Project plan marked Phase 1 as complete and ready for review.
 
-### Changed
-- Updated the project documentation to reflect the current dashboard architecture, including the visualization and static front-end layers.
-- Standardized the portfolio chart logic to be more analytically useful for comparison across time ranges and for performance review.
+### Phase 2 — Event and trace tracking
+- Added an observability package with JSONL-backed run tracking, event logging, metrics summaries, and health snapshots.
+- Hooked the run tracker into the orchestrator so each analysis produces a traceable event stream tied to the run ID.
+- Added a dedicated regression test to ensure the event stream and run summary behave as expected.
+- Marked the Phase 2 milestone as complete in the roadmap.
 
-## [2026-08-14]
+### Phase 3 — Live agent room
+- Confirmed the dashboard’s inter-agent group chat is the live agent room centerpiece for each analysis run.
+- Renamed the active panel to the explicit LIVE AGENT ROOM label for clarity and presentation.
+- Marked the Phase 3 milestone as complete in the roadmap.
 
-### Fixed
-- Resolved the stale and inconsistent portfolio range selection issue where the label and graph could drift out of sync.
-- Fixed the longer-range calculation bug that caused portfolio performance to appear incorrect when selecting ranges beyond 1 month.
+### Phase 4 — API call inspector
+- Added the missing API endpoint that exposes recorded run-level API events for inspection.
+- Hooked the inspector to the run tracker so external provider calls are visible and searchable by run.
+- Marked the Phase 4 milestone as complete in the roadmap.
 
-### Added
-- Added portfolio return regression tests validating baseline behavior and placeholder-zero handling.
+### Notes
+- Phase 0 establishes the real baseline for the observability roadmap and gives the project a measurable health snapshot before new features are layered on.
+- Added a unique run identifier to each analysis cycle using the format `RUN-YYYYMMDD-HHMMSS-SYMBOL`.
+- The run ID is now shared across the orchestrator session, agent message bus, and final API payload.
+- Added a regression test to lock in the behavior and prevent reintroducing the missing run-id contract.
+- Project plan marked Phase 1 as complete and ready for review.
+
+### Notes
+- Phase 0 establishes the real baseline for the observability roadmap and gives the project a measurable health snapshot before new features are layered on.

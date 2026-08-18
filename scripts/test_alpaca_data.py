@@ -213,13 +213,14 @@ def run() -> Dict[str, Any]:
             secret_key,
         )
 
+        selected_feed = FEED_NAME
         try:
-            feed = DataFeed(FEED_NAME)
+            feed = DataFeed(selected_feed)
         except Exception:
             feed = DataFeed.IEX
-            FEED_NAME = "iex"
+            selected_feed = "iex"
 
-        report["selected_feed"] = FEED_NAME
+        report["selected_feed"] = selected_feed
 
         # -----------------------------------------------------
         # Latest quote

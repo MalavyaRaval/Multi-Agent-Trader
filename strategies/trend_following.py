@@ -70,12 +70,14 @@ class TrendFollowingStrategy:
             reasons.append("Volume supports downtrend")
 
         decision, confidence = self._score_to_decision(score)
+        data_status = "ok" if signals else "partial"
         return {
             "strategy": self.name,
             "decision": decision,
             "confidence": round(confidence, 2),
-            "reason": "; ".join(reasons) if reasons else "No clear trend",
             "raw_score": round(score, 2),
+            "reason": "; ".join(reasons) if reasons else "No clear trend",
+            "data_status": data_status,
         }
 
     @staticmethod

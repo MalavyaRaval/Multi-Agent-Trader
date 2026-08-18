@@ -6,10 +6,14 @@ import numpy as np
 
 def compute_ema(series: pd.Series, period: int = 20) -> float:
     """Compute the latest EMA value from a pandas Series."""
-    if len(series) < period:
-        return float(series.iloc[-1]) if len(series) > 0 else 0.0
+    if series is None or len(series) < period:
+        return None
+    series = pd.to_numeric(series, errors="coerce")
+    if series.dropna().empty:
+        return None
     ema = series.ewm(span=period, adjust=False).mean()
-    return float(ema.iloc[-1])
+    value = ema.iloc[-1]
+    return float(value) if pd.notna(value) else None
 
 
 def calculate_ema(prices: list[float], period: int = 20) -> float:

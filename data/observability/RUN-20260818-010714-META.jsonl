@@ -1,0 +1,3 @@
+{"run_id": "RUN-20260818-010714-META", "agent": "orchestrator", "event": "run_started", "timestamp": "2026-08-18T01:07:14.052945+00:00", "status": "running", "symbol": "META", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260818-010714-META", "agent": "orchestrator", "event": "analysis_started", "timestamp": "2026-08-18T01:07:14.052945+00:00", "status": "running", "symbol": "META", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260818-010714-META", "agent": "orchestrator", "event": "analysis_completed", "timestamp": "2026-08-18T01:07:22.576736+00:00", "status": "success", "symbol": "META", "endpoint": "analysis_complete", "event_count": 2}

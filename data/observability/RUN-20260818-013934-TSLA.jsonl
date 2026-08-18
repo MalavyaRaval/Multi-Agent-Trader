@@ -1,0 +1,3 @@
+{"run_id": "RUN-20260818-013934-TSLA", "agent": "orchestrator", "event": "run_started", "timestamp": "2026-08-18T01:39:34.332451+00:00", "status": "running", "symbol": "TSLA", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260818-013934-TSLA", "agent": "orchestrator", "event": "analysis_started", "timestamp": "2026-08-18T01:39:34.335864+00:00", "status": "running", "symbol": "TSLA", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260818-013934-TSLA", "agent": "orchestrator", "event": "analysis_completed", "timestamp": "2026-08-18T01:39:47.653488+00:00", "status": "success", "symbol": "TSLA", "endpoint": "analysis_complete", "event_count": 2}

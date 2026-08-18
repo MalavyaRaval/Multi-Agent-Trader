@@ -278,6 +278,24 @@ def api_sessions():
     return jsonify({"sessions": sessions})
 
 
+@app.route("/api/api_calls", methods=["GET"])
+def api_api_calls():
+    """Return the recorded API events for a run or the most recent active run."""
+    run_id = request.args.get("run_id") or getattr(orchestrator, "run_tracker", None)._active_run_id
+    if not run_id:
+        return jsonify({"run_id": None, "calls": [], "count": 0})
+
+    calls = orchestrator.run_tracker.get_events(run_id)
+    api_calls = [
+        call for call in calls if call.get("event") == "api_call"
+    ]
+    return jsonify({
+        "run_id": run_id,
+        "calls": api_calls,
+        "count": len(api_calls),
+    })
+
+
 @app.route("/api/account", methods=["GET"])
 def api_account():
     """Get current Alpaca paper account info."""

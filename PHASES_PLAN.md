@@ -247,7 +247,9 @@ Historical stock bars also support explicit timeframes and feed selection.
 
 ---
 
-# 5. Phase 0 — Baseline Audit
+# 5. Phase 0 — Baseline Audit [COMPLETED]
+
+Status: Completed on 2026-08-16.
 
 Before adding features, determine exactly what currently works.
 
@@ -362,7 +364,9 @@ Last Successful Call  16:38:21
 
 ---
 
-# 7. Phase 1 — Create Run IDs
+# 7. Phase 1 — Create Run IDs [COMPLETED]
+
+Status: Completed on 2026-08-16.
 
 Every analysis must receive a unique ID.
 
@@ -389,7 +393,9 @@ This becomes the backbone of observability.
 
 ---
 
-# 8. Phase 2 — Create an Event/Trace System
+# 8. Phase 2 — Create an Event/Trace System [COMPLETED]
+
+Status: Completed on 2026-08-16.
 
 Create:
 
@@ -446,7 +452,9 @@ WARNING: API failed
 
 ---
 
-# 9. Phase 3 — Agent Group Chat Interface
+# 9. Phase 3 — Agent Group Chat Interface [COMPLETED]
+
+Status: Completed on 2026-08-16.
 
 This should become the centerpiece of the dashboard.
 
@@ -588,7 +596,9 @@ This is transparent and debuggable.
 
 ---
 
-# 11. Phase 4 — API Call Inspector
+# 11. Phase 4 — API Call Inspector [COMPLETED]
+
+Status: Completed on 2026-08-16.
 
 Every external API call should be visible.
 

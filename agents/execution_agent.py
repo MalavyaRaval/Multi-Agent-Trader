@@ -11,6 +11,7 @@ Can place real paper trades through Alpaca and logs everything to TradeHistory.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any, Dict, Optional
 
@@ -31,11 +32,13 @@ from sizing import target_volatility_size, risk_parity_size, half_kelly
 from optimization.ensemble import StrategyEnsemble
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 # Auto-execute threshold: only trade if confidence >= this value
 AUTO_EXECUTE_CONFIDENCE = float(os.getenv("AUTO_EXECUTE_CONFIDENCE", "0.75"))
 # Default notional size for auto-trades (fallback when smart sizing fails)
 AUTO_TRADE_NOTIONAL = float(os.getenv("AUTO_TRADE_NOTIONAL", "500"))
+ALLOW_DEGRADED_TRADING = os.getenv("ALLOW_DEGRADED_TRADING", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 class ExecutionAgent:
@@ -69,35 +72,82 @@ class ExecutionAgent:
             "status": "execution analysis ready",
             "action": "hold",
             "confidence": 0.0,
+            "decision_status": "DATA_UNAVAILABLE",
             "reason": "",
             "strategy_votes": [],
             "ensemble": {},
+            "data_available": True,
+            "data_quality": {
+                "market": True,
+                "technical": True,
+                "fundamental": True,
+                "news": True,
+                "risk": True,
+                "portfolio": True,
+            },
+            "data_quality_score": 100,
         }
 
         if not ctx:
             result["status"] = "execution analysis skipped (no context)"
+            result["decision_status"] = "DATA_UNAVAILABLE"
+            result["data_available"] = False
+            result["data_quality_score"] = 0
             return result
 
-        # ---- Run all strategies ----
+        tech = ctx.get("technical", {})
+        market = ctx.get("market", {})
+        required_fields = ["rsi_14", "macd", "macd_signal", "ema_20", "ema_50", "atr_14", "last_price"]
+        if tech.get("status") != "ok":
+            result["status"] = "insufficient_data"
+            result["action"] = "hold"
+            result["decision_status"] = "DATA_UNAVAILABLE"
+            result["confidence"] = 0.0
+            result["reason"] = "Insufficient market/technical data"
+            result["data_available"] = False
+            result["data_quality"]["technical"] = False
+            result["data_quality_score"] = 40
+            return result
+
+        signals = tech.get("signals", {})
+        missing_required = [field for field in required_fields if signals.get(field) is None]
+        if market.get("metrics") is None or any(signals.get(field) is None for field in required_fields):
+            result["status"] = "insufficient_data"
+            result["action"] = "hold"
+            result["decision_status"] = "DATA_UNAVAILABLE"
+            result["confidence"] = 0.0
+            result["reason"] = "Insufficient market/technical data" if not missing_required else f"Missing required fields: {missing_required}"
+            result["data_available"] = False
+            result["data_quality"]["market"] = market.get("metrics") is not None
+            result["data_quality"]["technical"] = not bool(missing_required)
+            result["data_quality_score"] = 40
+            return result
+
         strategy_results = []
         for strat in self.strategies:
             try:
                 vote = strat.evaluate(ctx)
-                # Ensure vote has a name for ensemble weighting
                 if isinstance(vote, dict) and "name" not in vote:
                     vote["name"] = getattr(strat, "name", strat.__class__.__name__)
+                if "data_status" not in vote:
+                    vote["data_status"] = "ok"
                 strategy_results.append(vote)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.exception("Strategy evaluation failed for %s (%s)", getattr(strat, "name", strat.__class__.__name__), symbol)
+                strategy_results.append({
+                    "strategy": getattr(strat, "name", strat.__class__.__name__),
+                    "decision": "hold",
+                    "confidence": 0.0,
+                    "raw_score": 0.0,
+                    "reason": f"Strategy evaluation error: {exc}",
+                    "data_status": "data_missing",
+                })
         result["strategy_votes"] = strategy_results
 
-        # ---- Aggregate strategy votes with ensemble weights ----
         ensemble_result = self.ensemble.aggregate(strategy_results)
         result["ensemble"] = ensemble_result
-        strat_score = ensemble_result.get("weighted_score", 0.0)
+        strat_score = float(ensemble_result.get("weighted_score", 0.0))
 
-        # ---- Agent-based scoring (from Phase 1) ----
-        tech = ctx.get("technical", {})
         fund = ctx.get("fundamental", {})
         news = ctx.get("news", {})
         risk = ctx.get("risk", {})
@@ -105,6 +155,31 @@ class ExecutionAgent:
 
         agent_score = 0.0
         reasons = []
+        risk_status = str(risk.get("status", "ok")).lower()
+        risk_level = str(risk.get("risk_level", "medium")).lower()
+        risk_factor = 1.0
+
+        if risk_status == "error":
+            result["status"] = "risk_error"
+            result["action"] = "hold"
+            result["decision_status"] = "DATA_UNAVAILABLE"
+            result["confidence"] = 0.0
+            result["reason"] = "Risk agent failed: " + str(risk.get("error", "unknown risk error"))
+            result["data_quality"]["risk"] = False
+            result["data_quality_score"] = 40
+            return result
+
+        if risk_level in {"unknown", "none"}:
+            risk_factor = 0.2
+            reasons.append("Risk unknown - reducing conviction")
+            result["data_quality"]["risk"] = False
+        elif risk_level == "high":
+            risk_factor = 0.35
+            reasons.append("High risk - reducing position size and conviction")
+        elif risk_level == "medium":
+            risk_factor = 0.7
+        elif risk_level == "low":
+            risk_factor = 0.9
 
         signals = tech.get("signals", {})
         rsi = signals.get("rsi_14")
@@ -145,14 +220,19 @@ class ExecutionAgent:
             agent_score -= 0.5
             reasons.append("Volume confirms downside")
 
-        fund_score = fund.get("score", 0)
-        agent_score += fund_score * 0.5
-        if fund_score > 0:
-            reasons.append("Fundamentals look good")
-        elif fund_score < 0:
-            reasons.append("Fundamentals weak")
+        fund_score = fund.get("score") if isinstance(fund, dict) else None
+        if fund_score is None:
+            reasons.append("Fundamentals unavailable")
+            result["data_quality"]["fundamental"] = False
+            result["data_quality_score"] = min(result["data_quality_score"], 60)
+        else:
+            agent_score += float(fund_score) * 0.5
+            if fund_score > 0:
+                reasons.append("Fundamentals look good")
+            elif fund_score < 0:
+                reasons.append("Fundamentals weak")
 
-        sentiment = news.get("sentiment", "neutral")
+        sentiment = news.get("sentiment", "neutral") if isinstance(news, dict) else "neutral"
         if sentiment == "positive":
             agent_score += 0.5
             reasons.append("Positive news sentiment")
@@ -160,50 +240,53 @@ class ExecutionAgent:
             agent_score -= 0.5
             reasons.append("Negative news sentiment")
 
-        risk_level = str(risk.get("risk_level", "medium")).lower()
-        risk_factor = 1.0
-        if risk_level == "high":
-            risk_factor = 0.35
-            reasons.append("High risk - reducing position size and conviction")
-        elif risk_level == "medium":
-            risk_factor = 0.7
-        elif risk_level == "low":
-            risk_factor = 0.9
-
         agent_score *= risk_factor
 
-        # ---- Combine strategy + agent scores ----
-        # Strategies get 40% weight, agents get 60%
-        combined_score = (agent_score * 0.6 + strat_score * 1.5) * risk_factor  # strategies already scaled 0..1
+        # Normalized to [-1, 1] for a mathematically clear 60/40 weighting.
+        # agent_score is built from additive heuristics; strategy_score already comes from the ensemble in [-1, 1].
+        agent_norm = max(-1.0, min(1.0, agent_score / 4.0))
+        strat_norm = max(-1.0, min(1.0, strat_score))
+        agent_contribution = agent_norm * 0.60
+        strategy_contribution = strat_norm * 0.40
+        combined_score = agent_contribution + strategy_contribution
 
-        # Portfolio context
-        position = port.get("position")
+        position = port.get("position") if isinstance(port, dict) else None
         if position and position.get("qty"):
             qty = float(position.get("qty", 0))
-            if qty > 0 and combined_score < -1.5:
+            if qty > 0 and combined_score < -0.25:
                 result["action"] = "sell"
-                result["confidence"] = min(abs(combined_score) / 4.0, 1.0)
-            elif qty == 0 and combined_score > 1.5:
+                result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
+                result["decision_status"] = "NORMAL"
+            elif qty == 0 and combined_score > 0.25:
                 result["action"] = "buy"
-                result["confidence"] = min(combined_score / 4.0, 1.0)
+                result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
+                result["decision_status"] = "NORMAL"
             else:
                 result["action"] = "hold"
-                result["confidence"] = max(0.0, 1.0 - abs(combined_score) / 1.5)
+                result["confidence"] = 0.13 if abs(combined_score) < 0.25 else min(abs(combined_score) / 2.0, 0.30)
+                result["decision_status"] = "INSUFFICIENT_EDGE"
         else:
-            if combined_score > 1.5:
+            if combined_score > 0.25:
                 result["action"] = "buy"
-                result["confidence"] = min(combined_score / 4.0, 1.0)
-            elif combined_score < -1.5:
+                result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
+                result["decision_status"] = "NORMAL"
+            elif combined_score < -0.25:
                 result["action"] = "sell"
-                result["confidence"] = min(abs(combined_score) / 4.0, 1.0)
+                result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
+                result["decision_status"] = "NORMAL"
             else:
                 result["action"] = "hold"
-                result["confidence"] = max(0.0, 1.0 - abs(combined_score) / 1.5)
+                result["confidence"] = 0.13 if abs(combined_score) < 0.25 else min(abs(combined_score) / 2.0, 0.30)
+                result["decision_status"] = "INSUFFICIENT_EDGE"
 
         result["reason"] = "; ".join(reasons) if reasons else "No strong signals"
         result["raw_score"] = round(combined_score, 2)
         result["agent_score"] = round(agent_score, 2)
         result["strategy_score"] = round(strat_score, 2)
+        result["normalized_agent_score"] = round(agent_norm, 4)
+        result["normalized_strategy_score"] = round(strat_norm, 4)
+        result["agent_contribution"] = round(agent_contribution, 4)
+        result["strategy_contribution"] = round(strategy_contribution, 4)
 
         # Generate comprehensive AI detailed reasoning breakdown
         try:
@@ -346,10 +429,18 @@ class ExecutionAgent:
         confidence = analysis.get("confidence", 0.0)
         reason = analysis.get("reason", "")
 
+        if not ALLOW_DEGRADED_TRADING:
+            if analysis.get("status") in {"insufficient_data", "risk_error"}:
+                return {"status": "skipped", "reason": "Auto-trading disabled because critical data is missing or risky"}
+            if analysis.get("data_quality_score", 100) < 60:
+                return {"status": "skipped", "reason": "Auto-trading disabled because data quality is below acceptable threshold"}
+            risk = (context or {}).get("risk", {}) if context else {}
+            if str(risk.get("status", "ok")).lower() == "error":
+                return {"status": "skipped", "reason": "Auto-trading disabled because risk agent failed"}
+
         if action == "hold" or confidence < AUTO_EXECUTE_CONFIDENCE:
             return None
 
-        # Check if we already have a position (simple anti-churn)
         port = context.get("portfolio", {}) if context else {}
         pos = port.get("position")
         if action == "buy" and pos and float(pos.get("qty", 0)) > 0:
@@ -357,7 +448,6 @@ class ExecutionAgent:
         if action == "sell" and (not pos or float(pos.get("qty", 0)) <= 0):
             return {"status": "skipped", "reason": "No position to sell"}
 
-        # Smart position sizing
         qty = self.compute_position_size(action, context)
         if qty is not None and qty > 0:
             return self.place_order(
@@ -369,7 +459,6 @@ class ExecutionAgent:
                 context=context,
             )
 
-        # Fallback to fixed notional
         return self.place_order(
             symbol=symbol,
             side=action,

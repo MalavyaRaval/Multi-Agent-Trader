@@ -19,28 +19,87 @@ class TechnicalAgent:
 
     def analyze(self, symbol: str, timeframe: str = "1d", days: int = 200) -> dict:
         symbol = symbol.upper()
+        errors = []
         try:
             snapshot = self.market.snapshot(symbol=symbol, timeframe=timeframe, days=days)
             bars = getattr(snapshot, "bars", None)
             if bars is None:
-                return {"status": "error", "symbol": symbol, "error": "No data"}
+                return {
+                    "status": "error",
+                    "source": "Alpaca",
+                    "symbol": symbol,
+                    "data_quality": "unavailable",
+                    "bars_used": 0,
+                    "signals": {},
+                    "errors": ["No market data"],
+                }
 
             frame = self._coerce_to_frame(bars)
             if frame.empty:
-                return {"status": "error", "symbol": symbol, "error": "No data"}
+                return {
+                    "status": "error",
+                    "source": "Alpaca",
+                    "symbol": symbol,
+                    "data_quality": "unavailable",
+                    "bars_used": 0,
+                    "signals": {},
+                    "errors": ["No data"],
+                }
+
+            required = ["open", "high", "low", "close", "volume"]
+            missing = [col for col in required if col not in frame.columns]
+            if missing:
+                return {
+                    "status": "error",
+                    "source": "Alpaca",
+                    "symbol": symbol,
+                    "data_quality": "unavailable",
+                    "bars_used": len(frame),
+                    "signals": {},
+                    "errors": [f"Missing OHLCV columns: {missing}"],
+                }
+
+            if len(frame) < 60:
+                return {
+                    "status": "error",
+                    "source": "Alpaca",
+                    "symbol": symbol,
+                    "data_quality": "partial",
+                    "bars_used": len(frame),
+                    "signals": {},
+                    "errors": [f"Insufficient historical data: {len(frame)} bars < 60"],
+                }
+
+            frame = frame.copy()
+            for col in required:
+                frame[col] = pd.to_numeric(frame[col], errors="coerce")
+
+            close = frame["close"]
+            high = frame["high"]
+            low = frame["low"]
+            volume = frame["volume"]
+
+            if close.notna().sum() == 0 or high.notna().sum() == 0 or low.notna().sum() == 0:
+                return {
+                    "status": "error",
+                    "source": "Alpaca",
+                    "symbol": symbol,
+                    "data_quality": "unavailable",
+                    "bars_used": len(frame),
+                    "signals": {},
+                    "errors": ["No valid OHLC data received"],
+                }
 
             signals = {}
-            close = pd.to_numeric(frame.get("close", pd.Series([None] * len(frame))), errors="coerce")
-            high = pd.to_numeric(frame.get("high", pd.Series([None] * len(frame))), errors="coerce")
-            low = pd.to_numeric(frame.get("low", pd.Series([None] * len(frame))), errors="coerce")
-            volume = pd.to_numeric(frame.get("volume", pd.Series([0] * len(frame))), errors="coerce")
-
+            signals["last_price"] = float(close.dropna().iloc[-1])
+            signals["close"] = float(close.dropna().iloc[-1])
             signals["rsi_14"] = compute_rsi(close, 14)
             signals["macd"], signals["macd_signal"], signals["macd_hist"] = compute_macd(close)
             signals["ema_20"] = compute_ema(close, 20)
             signals["ema_50"] = compute_ema(close, 50)
             bb_upper, bb_lower, bb_mid = compute_bollinger(close)
             signals["bollinger_upper"] = bb_upper
+            signals["bollinger_middle"] = bb_mid
             signals["bollinger_lower"] = bb_lower
             signals["atr_14"] = compute_atr(high, low, close, 14)
             vol_signals = compute_volume_signals(volume, close)
@@ -52,13 +111,27 @@ class TechnicalAgent:
                 signals["relative_volume"] = metrics.get("relative_volume")
 
             return {
-                "status": "technical analysis ready",
+                "status": "ok",
+                "source": "Alpaca",
                 "symbol": symbol,
+                "data_quality": "complete",
                 "timeframe": getattr(snapshot, "timeframe", timeframe),
+                "bars_used": len(frame),
+                "number_of_bars": len(frame),
                 "signals": signals,
+                "errors": errors,
             }
         except Exception as e:
-            return {"status": "error", "symbol": symbol, "error": str(e)}
+            errors.append(str(e))
+            return {
+                "status": "error",
+                "source": "Alpaca",
+                "symbol": symbol,
+                "data_quality": "unavailable",
+                "bars_used": 0,
+                "signals": {},
+                "errors": errors,
+            }
 
     @staticmethod
     def _coerce_to_frame(bars):

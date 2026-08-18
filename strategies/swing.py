@@ -91,12 +91,14 @@ class SwingStrategy:
             reasons.append("Already long — reducing add-on")
 
         decision, confidence = self._score_to_decision(score)
+        data_status = "ok" if signals else "partial"
         return {
             "strategy": self.name,
             "decision": decision,
             "confidence": round(confidence, 2),
-            "reason": "; ".join(reasons) if reasons else "No swing setup",
             "raw_score": round(score, 2),
+            "reason": "; ".join(reasons) if reasons else "No swing setup",
+            "data_status": data_status,
         }
 
     @staticmethod

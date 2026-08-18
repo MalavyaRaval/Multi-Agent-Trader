@@ -1,0 +1,373 @@
+{
+  "phase": "phase_0_baseline_audit",
+  "generated_at": "2026-08-16T04:37:38.225595+00:00",
+  "finished_at": "2026-08-16T04:38:58.308893+00:00",
+  "overall_status": "WARNING",
+  "symbol": "AAPL",
+  "summary": {
+    "services": 5,
+    "pass": 38,
+    "warning": 1,
+    "fail": 0,
+    "checks": 39
+  },
+  "services": {
+    "alpaca": {
+      "service": "alpaca",
+      "symbol": "AAPL",
+      "selected_feed": "iex",
+      "started_at": "2026-08-16T04:37:38.225595+00:00",
+      "checks": [
+        {
+          "name": "credentials",
+          "status": "PASS",
+          "message": "Alpaca credentials are present.",
+          "latency_ms": null,
+          "checked_at": "2026-08-16T04:37:38.225595+00:00"
+        },
+        {
+          "name": "paper_account_authentication",
+          "status": "PASS",
+          "message": "Paper trading account authenticated.",
+          "latency_ms": 1205.5754999746569,
+          "checked_at": "2026-08-16T04:37:43.346478+00:00",
+          "account_status": "AccountStatus.ACTIVE"
+        },
+        {
+          "name": "account_endpoint",
+          "status": "PASS",
+          "message": "Paper account endpoint responded successfully.",
+          "latency_ms": 1205.5754999746569,
+          "checked_at": "2026-08-16T04:37:43.346478+00:00",
+          "account_status": "AccountStatus.ACTIVE",
+          "buying_power": "232837.61"
+        },
+        {
+          "name": "latest_quote",
+          "status": "PASS",
+          "message": "Latest quote returned for AAPL.",
+          "latency_ms": 1320.2439000015147,
+          "checked_at": "2026-08-16T04:37:44.868524+00:00",
+          "bid": 290.32,
+          "ask": 0.0,
+          "timestamp": "2026-08-14 20:00:04.771912+00:00"
+        },
+        {
+          "name": "latest_trade",
+          "status": "PASS",
+          "message": "Latest trade returned for AAPL.",
+          "latency_ms": 49.305499996989965,
+          "checked_at": "2026-08-16T04:37:44.918764+00:00",
+          "price": 305.94,
+          "size": 191,
+          "timestamp": "2026-08-14 19:59:59.546902+00:00"
+        },
+        {
+          "name": "latest_bar",
+          "status": "PASS",
+          "message": "Latest daily bar returned for AAPL.",
+          "latency_ms": 49.24890003167093,
+          "checked_at": "2026-08-16T04:37:45.105528+00:00",
+          "timestamp": "2026-08-07 04:00:00+00:00",
+          "close": 313.29,
+          "volume": 1073989.0
+        },
+        {
+          "name": "historical_bars",
+          "status": "PASS",
+          "message": "Received 275 historical bars.",
+          "latency_ms": 66.39849999919534,
+          "checked_at": "2026-08-16T04:37:45.190262+00:00",
+          "bars_received": 275,
+          "expected_minimum": 250,
+          "newest_bar": "2026-08-14 04:00:00+00:00",
+          "oldest_bar": "2025-07-14 04:00:00+00:00"
+        },
+        {
+          "name": "rate_limit_response",
+          "status": "WARNING",
+          "message": "No 429 response was intentionally generated. Any observed 429 response is recorded above.",
+          "latency_ms": null,
+          "checked_at": "2026-08-16T04:37:45.190262+00:00",
+          "rate_limit_observed": false
+        }
+      ],
+      "status": "WARNING",
+      "finished_at": "2026-08-16T04:37:45.190262+00:00"
+    },
+    "finnhub": {
+      "service": "finnhub",
+      "symbol": "AAPL",
+      "checks": [
+        {
+          "name": "credentials",
+          "status": "PASS",
+          "message": "FINNHUB_API_KEY is present.",
+          "checked_at": "2026-08-16T04:37:45.198922+00:00"
+        },
+        {
+          "name": "company_profile",
+          "status": "PASS",
+          "message": "Company profile returned.",
+          "checked_at": "2026-08-16T04:37:46.850888+00:00",
+          "latency_ms": 1652.1458000061102,
+          "company_name": "Apple Inc",
+          "exchange": "NASDAQ NMS - GLOBAL MARKET"
+        },
+        {
+          "name": "quote",
+          "status": "PASS",
+          "message": "Quote returned.",
+          "checked_at": "2026-08-16T04:37:48.805686+00:00",
+          "latency_ms": 1949.6668999781832,
+          "current_price": 305.93,
+          "previous_close": 305.26,
+          "quote_timestamp": 1786737600,
+          "freshness_seconds": 117468.80568599701
+        },
+        {
+          "name": "financial_data",
+          "status": "PASS",
+          "message": "Financial metrics returned.",
+          "checked_at": "2026-08-16T04:37:50.919923+00:00",
+          "latency_ms": 2100.8782000280917,
+          "metric_count": 133,
+          "pe_ratio": 34.3608,
+          "eps": 8.723299999999998
+        },
+        {
+          "name": "news",
+          "status": "PASS",
+          "message": "News returned successfully.",
+          "checked_at": "2026-08-16T04:37:52.874002+00:00",
+          "latency_ms": 1958.2068000454456,
+          "articles_returned": 225,
+          "newest_article_timestamp": 1786795551,
+          "freshness_seconds": 59521.87400197983
+        }
+      ],
+      "status": "PASS",
+      "finished_at": "2026-08-16T04:37:52.874002+00:00",
+      "started_at": "2026-08-16T04:37:45.198922+00:00"
+    },
+    "gemini": {
+      "service": "gemini",
+      "model": "gemini-2.5-flash",
+      "checks": [
+        {
+          "name": "credentials",
+          "status": "PASS",
+          "message": "GEMINI_API_KEY is present.",
+          "checked_at": "2026-08-16T04:37:52.892599+00:00"
+        },
+        {
+          "name": "client_initialization",
+          "status": "PASS",
+          "message": "Google Gen AI client initialized.",
+          "checked_at": "2026-08-16T04:38:08.701378+00:00"
+        },
+        {
+          "name": "model_availability",
+          "status": "PASS",
+          "message": "Model gemini-2.5-flash is available.",
+          "checked_at": "2026-08-16T04:38:08.860889+00:00",
+          "latency_ms": 161.38050000881776,
+          "models_returned": 53
+        },
+        {
+          "name": "simple_request",
+          "status": "PASS",
+          "message": "Gemini generation request succeeded.",
+          "checked_at": "2026-08-16T04:38:09.536533+00:00",
+          "latency_ms": 673.4048000071198,
+          "response_preview": "GEMINI_HEALTH_OK"
+        },
+        {
+          "name": "response_latency",
+          "status": "PASS",
+          "message": "Gemini response received in 673 ms.",
+          "checked_at": "2026-08-16T04:38:09.536533+00:00",
+          "latency_ms": 673.4048000071198
+        },
+        {
+          "name": "timeout_handling",
+          "status": "PASS",
+          "message": "Installed Gemini SDK exposes HttpOptions for HTTP timeout configuration.",
+          "checked_at": "2026-08-16T04:38:09.536533+00:00"
+        }
+      ],
+      "status": "PASS",
+      "finished_at": "2026-08-16T04:38:09.536533+00:00",
+      "started_at": "2026-08-16T04:37:52.892599+00:00"
+    },
+    "indicators": {
+      "service": "internal_indicators",
+      "checks": [
+        {
+          "name": "indicators_package",
+          "status": "PASS",
+          "message": "Indicators package imported.",
+          "checked_at": "2026-08-16T04:38:09.546008+00:00",
+          "modules": [
+            "atr",
+            "bollinger",
+            "ema",
+            "macd",
+            "multiframe",
+            "rsi",
+            "volume"
+          ]
+        },
+        {
+          "name": "indicator_module:atr",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.552529+00:00"
+        },
+        {
+          "name": "indicator_module:bollinger",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.552529+00:00"
+        },
+        {
+          "name": "indicator_module:ema",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.556213+00:00"
+        },
+        {
+          "name": "indicator_module:macd",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.561044+00:00"
+        },
+        {
+          "name": "indicator_module:multiframe",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.681044+00:00"
+        },
+        {
+          "name": "indicator_module:rsi",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.681044+00:00"
+        },
+        {
+          "name": "indicator_module:volume",
+          "status": "PASS",
+          "message": "Module imported successfully.",
+          "checked_at": "2026-08-16T04:38:09.681044+00:00"
+        },
+        {
+          "name": "multiframe",
+          "status": "PASS",
+          "message": "Multi-timeframe calculation executed.",
+          "checked_at": "2026-08-16T04:38:18.100863+00:00",
+          "result_type": "dict",
+          "result_keys": [
+            "symbol",
+            "timeframes_analyzed",
+            "frame_results",
+            "alignment_score",
+            "overall_signal",
+            "trend_summary",
+            "momentum_summary"
+          ]
+        },
+        {
+          "name": "strategies_package",
+          "status": "PASS",
+          "message": "Strategies package imported.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00",
+          "modules": [
+            "breakout",
+            "mean_reversion",
+            "momentum",
+            "swing",
+            "trend_following"
+          ]
+        },
+        {
+          "name": "strategy_module:breakout",
+          "status": "PASS",
+          "message": "Strategy module imported successfully.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00"
+        },
+        {
+          "name": "strategy_module:mean_reversion",
+          "status": "PASS",
+          "message": "Strategy module imported successfully.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00"
+        },
+        {
+          "name": "strategy_module:momentum",
+          "status": "PASS",
+          "message": "Strategy module imported successfully.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00"
+        },
+        {
+          "name": "strategy_module:swing",
+          "status": "PASS",
+          "message": "Strategy module imported successfully.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00"
+        },
+        {
+          "name": "strategy_module:trend_following",
+          "status": "PASS",
+          "message": "Strategy module imported successfully.",
+          "checked_at": "2026-08-16T04:38:18.101995+00:00"
+        }
+      ],
+      "status": "PASS",
+      "finished_at": "2026-08-16T04:38:18.101995+00:00",
+      "started_at": "2026-08-16T04:38:09.546008+00:00"
+    },
+    "pipeline": {
+      "service": "internal_pipeline",
+      "checks": [
+        {
+          "name": "orchestrator",
+          "status": "PASS",
+          "message": "Orchestrator imported and instantiated.",
+          "checked_at": "2026-08-16T04:38:23.284454+00:00",
+          "agent_count": 7
+        },
+        {
+          "name": "execution_calculation",
+          "status": "PASS",
+          "message": "Execution calculation completed.",
+          "checked_at": "2026-08-16T04:38:29.448106+00:00",
+          "action": "hold",
+          "confidence": 0.6220000000000001,
+          "strategy_votes": 5
+        },
+        {
+          "name": "trade_history",
+          "status": "PASS",
+          "message": "TradeHistory initialized successfully.",
+          "checked_at": "2026-08-16T04:38:29.518904+00:00",
+          "stats_type": "dict"
+        },
+        {
+          "name": "reasoning_memory",
+          "status": "PASS",
+          "message": "ReasoningEngine initialized successfully.",
+          "checked_at": "2026-08-16T04:38:34.115632+00:00"
+        },
+        {
+          "name": "flask_application",
+          "status": "PASS",
+          "message": "Flask application discovered and root endpoint responded.",
+          "checked_at": "2026-08-16T04:38:58.294119+00:00",
+          "module": "app",
+          "http_status": 200
+        }
+      ],
+      "status": "PASS",
+      "finished_at": "2026-08-16T04:38:58.294119+00:00",
+      "started_at": "2026-08-16T04:38:18.101995+00:00"
+    }
+  }
+}
