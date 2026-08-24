@@ -178,8 +178,29 @@ function fetchDiagnostics() {
         .then(data => {
             const services = data.services || {};
 
+            const alpaca = services.alpaca || {};
             const finnhub = services.finnhub || {};
             const gemini = services.gemini || {};
+
+            const alpacaDot =
+                document.getElementById("alpaca-dot");
+
+            if (alpacaDot) {
+                alpacaDot.className =
+                    alpaca.keys_configured
+                        ? "status-dot dot-green"
+                        : "status-dot dot-yellow";
+            }
+
+            const alpacaLabel =
+                document.getElementById("alpaca-label");
+
+            if (alpacaLabel) {
+                alpacaLabel.textContent =
+                    alpaca.keys_configured
+                        ? "Alpaca API: Ready"
+                        : "Alpaca API: Setup needed";
+            }
 
             const finnhubDot =
                 document.getElementById("finnhub-dot");
@@ -3599,6 +3620,15 @@ async function loadPortfolioChart() {
         }
 
         if (requestId !== portfolioChartRequestToken) {
+            return;
+        }
+
+        if (data.status === "not_configured") {
+            showPortfolioChartError(
+                data.error ||
+                "Add Alpaca credentials to load portfolio performance."
+            );
+            updatePortfolioChartSummary(data);
             return;
         }
 

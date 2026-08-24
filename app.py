@@ -592,6 +592,24 @@ def api_portfolio_chart():
                 "error": f"Invalid range: {selected_range}",
             }), 400
 
+        if not os.getenv("ALPACA_API_KEY") or not os.getenv("ALPACA_SECRET_KEY"):
+            return jsonify({
+                "status": "not_configured",
+                "error": (
+                    "Add ALPACA_API_KEY and ALPACA_SECRET_KEY to load "
+                    "live portfolio performance."
+                ),
+                "range": selected_range,
+                "mode": chart_mode,
+                "portfolio": [],
+                "positions": [],
+                "trades": [],
+                "symbols": [],
+                "current_value": None,
+                "period_return_pct": None,
+                "period_start_equity": None,
+            })
+
         fills = get_all_fills()
 
         range_end = utc_now()
@@ -931,4 +949,6 @@ def api_search():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", "5000"))
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in {"1", "true", "yes"}
+    app.run(host="0.0.0.0", port=port, debug=debug)

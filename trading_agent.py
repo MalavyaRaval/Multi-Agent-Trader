@@ -10,7 +10,6 @@ Run it with:  python trading_agent.py
 """
 
 import os
-import sys
 import json
 
 from dotenv import load_dotenv
@@ -40,17 +39,37 @@ MAX_TOOL_ROUNDS = 8                      # safety cap on chained tool calls per 
 # want the agent to place orders immediately without a confirmation prompt.
 REQUIRE_CONFIRMATION = True
 
-if not all([ALPACA_API_KEY, ALPACA_SECRET_KEY, GEMINI_API_KEY]):
-    print("Missing API keys. Copy .env.example to .env and fill in ALPACA_API_KEY,")
-    print("ALPACA_SECRET_KEY, and GEMINI_API_KEY before running this script.")
-    sys.exit(1)
+CONFIGURED = bool(ALPACA_API_KEY and ALPACA_SECRET_KEY and GEMINI_API_KEY)
 
-# paper=True is what makes this a paper (simulated) account -- never change this
-# to False in this script. Only paper API keys will work here anyway.
-trading_client = TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
-data_client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+# Keep the dashboard usable without credentials. API-backed actions return a
+# clear configuration error until paper-trading credentials are supplied.
+trading_client = (
+    TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
+    if ALPACA_API_KEY and ALPACA_SECRET_KEY
+    else None
+)
+data_client = (
+    StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
+    if ALPACA_API_KEY and ALPACA_SECRET_KEY
+    else None
+)
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+
+def _configuration_error() -> dict:
+    missing = [
+        name
+        for name, value in (
+            ("ALPACA_API_KEY", ALPACA_API_KEY),
+            ("ALPACA_SECRET_KEY", ALPACA_SECRET_KEY),
+            ("GEMINI_API_KEY", GEMINI_API_KEY),
+        )
+        if not value
+    ]
+    return {
+        "status": "not_configured",
+        "error": f"Add {', '.join(missing)} to enable paper-trading actions.",
+    }
 
 SYSTEM_INSTRUCTION = """You are a trading assistant chatting with a user about their
 Alpaca PAPER TRADING account. This is simulated money -- no real funds are ever at risk.
@@ -78,6 +97,8 @@ Rules:
 
 def get_account_info():
     """Get paper account cash, buying power, portfolio value, and equity."""
+    if trading_client is None:
+        return _configuration_error()
     a = trading_client.get_account()
     return {
         "cash": a.cash,
@@ -89,6 +110,8 @@ def get_account_info():
 
 def get_positions():
     """List every stock currently held in the paper account, with qty and P&L."""
+    if trading_client is None:
+        return _configuration_error()
     positions = trading_client.get_all_positions()
     return {
         "positions": [
@@ -107,6 +130,8 @@ def get_positions():
 
 def get_stock_price(symbol: str):
     """Get the latest bid/ask quote for a stock ticker symbol."""
+    if data_client is None:
+        return _configuration_error()
     symbol = symbol.upper()
     try:
         req = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
@@ -133,6 +158,8 @@ def sell_stock(symbol: str, qty: float = None, notional: float = None):
 def _place_order(symbol: str, side: OrderSide, qty, notional):
     symbol = symbol.upper()
 
+    if trading_client is None:
+        return _configuration_error()
     if qty is None and notional is None:
         return {"status": "error", "error": "Must specify either qty or notional."}
     if qty is not None and notional is not None:
@@ -232,6 +259,13 @@ TOOL_DECLARATIONS = [
 
 
 def run_turn(user_text: str, previous_interaction_id):
+    if gemini_client is None:
+        return (
+            "The AI trading assistant is not configured yet. Add GEMINI_API_KEY "
+            "to enable chat, and Alpaca paper credentials for account actions.",
+            previous_interaction_id,
+        )
+
     kwargs = dict(
         model=MODEL_NAME,
         input=user_text,
