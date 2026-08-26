@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from strategies.common import finalize_vote
+
 
 class BreakoutStrategy:
     name = "breakout"
@@ -77,21 +79,7 @@ class BreakoutStrategy:
                 score -= 0.3
                 reasons.append("RSI supports breakdown continuation")
 
-        decision, confidence = self._score_to_decision(score)
-        data_status = "ok" if signals else "partial"
-        return {
-            "strategy": self.name,
-            "decision": decision,
-            "confidence": round(confidence, 2),
-            "raw_score": round(score, 2),
-            "reason": "; ".join(reasons) if reasons else "No breakout signal",
-            "data_status": data_status,
-        }
-
-    @staticmethod
-    def _score_to_decision(score: float):
-        if score >= 2.0:
-            return "buy", min(score / 4.0, 1.0)
-        if score <= -2.0:
-            return "sell", min(abs(score) / 4.0, 1.0)
-        return "hold", max(0.0, 1.0 - abs(score) / 2.0)
+        return finalize_vote(
+            self.name, score, reasons, signals,
+            threshold=2.0, scale=4.0, empty_reason="No breakout signal",
+        )

@@ -24,14 +24,13 @@ This script NEVER places an order.
 
 from __future__ import annotations
 
-import json
 import os
-import time
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Dict
 
 from dotenv import load_dotenv
+
+from scripts._health_check_common import finalize_report, make_check as _result, run_health_check_cli, timed as _timed_call
 
 load_dotenv()
 
@@ -39,25 +38,6 @@ SYMBOL = os.getenv("DEFAULT_SYMBOL", "AAPL").upper()
 FEED_NAME = os.getenv("ALPACA_DATA_FEED", "iex").lower()
 HISTORICAL_DAYS = int(os.getenv("HEALTH_CHECK_HISTORICAL_DAYS", "400"))
 EXPECTED_BARS = int(os.getenv("HEALTH_CHECK_EXPECTED_BARS", "250"))
-
-
-def _result(
-    name: str,
-    status: str,
-    *,
-    message: str = "",
-    latency_ms: float | None = None,
-    **extra: Any,
-) -> Dict[str, Any]:
-    data = {
-        "name": name,
-        "status": status,
-        "message": message,
-        "latency_ms": latency_ms,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-    }
-    data.update(extra)
-    return data
 
 
 def _exception_details(exc: Exception) -> Dict[str, Any]:
@@ -90,18 +70,6 @@ def _exception_details(exc: Exception) -> Dict[str, Any]:
     return details
 
 
-def _timed_call(func):
-    started = time.perf_counter()
-
-    try:
-        value = func()
-        latency_ms = (time.perf_counter() - started) * 1000
-        return value, latency_ms, None
-    except Exception as exc:
-        latency_ms = (time.perf_counter() - started) * 1000
-        return None, latency_ms, exc
-
-
 def run() -> Dict[str, Any]:
     started_at = datetime.now(timezone.utc)
 
@@ -124,8 +92,7 @@ def run() -> Dict[str, Any]:
                 message="ALPACA_API_KEY or ALPACA_SECRET_KEY is missing.",
             )
         )
-        report["status"] = "FAIL"
-        return report
+        return finalize_report(report)
 
     report["checks"].append(
         _result(
@@ -470,36 +437,11 @@ def run() -> Dict[str, Any]:
         )
     )
 
-    failures = [
-        c for c in report["checks"]
-        if c["status"] == "FAIL"
-    ]
-
-    warnings = [
-        c for c in report["checks"]
-        if c["status"] == "WARNING"
-    ]
-
-    report["status"] = (
-        "FAIL"
-        if failures
-        else "WARNING"
-        if warnings
-        else "PASS"
-    )
-
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
-
-    return report
+    return finalize_report(report)
 
 
 def main() -> None:
-    report = run()
-
-    print(json.dumps(report, indent=2, default=str))
-
-    if report["status"] == "FAIL":
-        raise SystemExit(1)
+    run_health_check_cli(run)
 
 
 if __name__ == "__main__":

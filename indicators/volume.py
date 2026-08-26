@@ -32,10 +32,3 @@ def compute_volume_signals(volume: pd.Series, close: pd.Series) -> dict:
             trend = "sell"
 
     return {"volume_ratio": ratio, "volume_trend": trend}
-
-
-def calculate_volume_ratio(volume: float, average_volume: float) -> float:
-    """Simple volume ratio (backward compat)."""
-    if average_volume == 0:
-        return 0.0
-    return volume / average_volume

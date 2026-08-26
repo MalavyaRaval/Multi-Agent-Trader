@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+
+from observability.run_tracker import now_iso
 
 
 @dataclass
@@ -26,7 +27,7 @@ class EventRecord:
             run_id=payload.get("run_id", ""),
             agent=payload.get("agent", "unknown"),
             event=payload.get("event", "unknown"),
-            timestamp=payload.get("timestamp", datetime.now(timezone.utc).isoformat()),
+            timestamp=payload.get("timestamp", now_iso()),
             status=payload.get("status", "success"),
             symbol=payload.get("symbol", ""),
             provider=payload.get("provider"),

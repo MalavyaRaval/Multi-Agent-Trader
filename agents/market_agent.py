@@ -18,17 +18,12 @@ This agent ONLY gathers data.
 from __future__ import annotations
 
 import logging
-import os
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from functools import wraps
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 import pandas as pd
-from dotenv import load_dotenv
 
-from alpaca.data.historical import StockHistoricalDataClient
 from alpaca.data.requests import (
     StockBarsRequest,
     StockLatestQuoteRequest,
@@ -36,15 +31,14 @@ from alpaca.data.requests import (
 )
 from alpaca.data.timeframe import TimeFrame
 
+from data.alpaca_client import get_market_data_client
+from data.cache import Cache
+from data.retry import retry
+
 
 # ----------------------------------------------------------
 # Configuration
 # ----------------------------------------------------------
-
-load_dotenv()
-
-ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
-ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -120,48 +114,9 @@ class MarketAgent:
     """Collects market data and prepares structured snapshots for downstream agents."""
 
     def __init__(self, cache_ttl_seconds: int = 60) -> None:
-        self.client = None
-        if ALPACA_API_KEY and ALPACA_SECRET_KEY:
-            try:
-                self.client = StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
-            except Exception as exc:
-                logger.warning("Could not initialize Alpaca client: %s", exc)
-        self.cache_ttl_seconds = cache_ttl_seconds
-        self._cache: Dict[tuple[str, str, int], Dict[str, Any]] = {}
+        self.client = get_market_data_client()
+        self._cache = Cache(cache_ttl_seconds)
         logger.info("Market Agent initialized.")
-
-    @staticmethod
-    def _retry(max_retries: int = 3, delay_seconds: float = 1.0) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-            @wraps(func)
-            def wrapper(*args: Any, **kwargs: Any) -> Any:
-                last_error: Optional[Exception] = None
-                for attempt in range(1, max_retries + 1):
-                    try:
-                        return func(*args, **kwargs)
-                    except Exception as exc:  # pragma: no cover - defensive
-                        last_error = exc
-                        if attempt == max_retries:
-                            raise
-                        logger.warning("Retry %s/%s for %s failed with %s", attempt, max_retries, func.__name__, exc)
-                        time.sleep(delay_seconds * attempt)
-                raise last_error  # type: ignore[misc]
-
-            return wrapper
-
-        return decorator
-
-    def _cache_get(self, key: tuple[str, str, int]) -> Optional[Dict[str, Any]]:
-        value = self._cache.get(key)
-        if not value:
-            return None
-        if datetime.utcnow() - value["timestamp"] > timedelta(seconds=self.cache_ttl_seconds):
-            self._cache.pop(key, None)
-            return None
-        return value["payload"]
-
-    def _cache_set(self, key: tuple[str, str, int], payload: Dict[str, Any]) -> None:
-        self._cache[key] = {"timestamp": datetime.utcnow(), "payload": payload}
 
     # ------------------------------------------------------
 
@@ -169,7 +124,7 @@ class MarketAgent:
         message = str(error).lower()
         return "subscription does not permit querying recent sip data" in message or "sip data" in message
 
-    @_retry(max_retries=3, delay_seconds=1.0)
+    @retry(max_retries=3, delay_seconds=1.0)
     def latest_quote(self, symbol: str) -> MarketQuote:
         symbol = symbol.upper()
         if self.client is None:
@@ -275,7 +230,7 @@ class MarketAgent:
 
     # ------------------------------------------------------
 
-    @_retry(max_retries=3, delay_seconds=1.0)
+    @retry(max_retries=3, delay_seconds=1.0)
     def latest_trade(self, symbol: str) -> MarketTrade:
         symbol = symbol.upper()
         if self.client is None:
@@ -342,11 +297,11 @@ class MarketAgent:
 
         return df
 
-    @_retry(max_retries=3, delay_seconds=1.0)
+    @retry(max_retries=3, delay_seconds=1.0)
     def historical_bars(self, symbol: str, timeframe: str | TimeFrame = "1d", days: int = 200) -> pd.DataFrame:
         symbol = symbol.upper()
         cache_key = (symbol, str(timeframe), days)
-        cached = self._cache_get(cache_key)
+        cached = self._cache.get(cache_key)
         if cached is not None:
             return pd.DataFrame(cached)
 
@@ -378,7 +333,7 @@ class MarketAgent:
             df["timestamp"] = pd.to_datetime(df["timestamp"])
 
         df = self._validate_bars(df, symbol)
-        self._cache_set(cache_key, df.to_dict(orient="records"))
+        self._cache.set(cache_key, df.to_dict(orient="records"))
         return df
 
     # ------------------------------------------------------

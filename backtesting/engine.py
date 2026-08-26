@@ -16,6 +16,7 @@ import pandas as pd
 
 from agents.market_agent import MarketAgent
 from agents.technical_agent import TechnicalAgent
+from backtesting.report import compute_trade_stats
 from strategies.momentum import MomentumStrategy
 from strategies.trend_following import TrendFollowingStrategy
 from strategies.mean_reversion import MeanReversionStrategy
@@ -225,9 +226,7 @@ class BacktestEngine:
             )
             trades.append(trade)
 
-        winning = [t for t in trades if t.pnl > 0]
-        losing = [t for t in trades if t.pnl <= 0]
-        total_pnl = sum(t.pnl for t in trades)
+        stats = compute_trade_stats(trades, pnl_getter=lambda t: t.pnl)
 
         return BacktestResult(
             symbol=symbol,
@@ -235,10 +234,10 @@ class BacktestEngine:
             end_date=str(bars.iloc[-1].get("timestamp", "") or bars.index[-1]),
             initial_cash=self.initial_cash,
             final_cash=round(cash, 2),
-            total_trades=len(trades),
-            winning_trades=len(winning),
-            losing_trades=len(losing),
-            total_pnl=round(total_pnl, 2),
+            total_trades=stats["trade_count"],
+            winning_trades=stats["winning_trades"],
+            losing_trades=stats["losing_trades"],
+            total_pnl=stats["total_pnl"],
             max_drawdown_pct=round(max_drawdown, 2),
             trades=trades,
             equity_curve=equity_curve,

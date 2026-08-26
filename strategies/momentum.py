@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from strategies.common import finalize_vote
+
 
 class MomentumStrategy:
     name = "momentum"
@@ -79,23 +81,8 @@ class MomentumStrategy:
             score += 0.3
             reasons.append("Positive news supports momentum")
 
-        decision, confidence = self._score_to_decision(score)
-        data_status = "ok" if signals else "partial"
-        return {
-            "strategy": self.name,
-            "decision": decision,
-            "confidence": round(confidence, 2),
-            "raw_score": round(score, 2),
-            "reason": "; ".join(reasons) if reasons else "No clear momentum",
-            "data_status": data_status,
-        }
-
-    @staticmethod
-    def _score_to_decision(score: float):
-        if score >= 1.5:
-            return "buy", min(score / 3.0, 1.0)
-        if score <= -1.5:
-            return "sell", min(abs(score) / 3.0, 1.0)
-        if abs(score) < 1e-9:
-            return "hold", 0.0
-        return "hold", max(0.0, 1.0 - abs(score) / 1.5)
+        return finalize_vote(
+            self.name, score, reasons, signals,
+            threshold=1.5, scale=3.0, empty_reason="No clear momentum",
+            zero_confidence_at_zero_score=True,
+        )

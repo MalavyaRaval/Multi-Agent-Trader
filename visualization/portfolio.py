@@ -884,27 +884,12 @@ def reconstruct_symbol_quantity(
 # BUILD POSITION HISTORY
 # ============================================================
 
-def build_position_history(
-    fills,
-    bars,
-    symbols,
-):
-
-    if bars.empty:
-        return pd.DataFrame()
-
-    frames = []
-
-    for symbol in symbols:
-
-        result = reconstruct_symbol_quantity(
-            fills,
-            bars,
-            symbol,
-        )
-
-        if not result.empty:
-            frames.append(result)
+def _concat_per_symbol(symbols, fn) -> pd.DataFrame:
+    """Run fn(symbol) -> DataFrame for each symbol, concat the non-empty
+    results, and sort by (symbol, timestamp). Shared by build_position_history
+    and build_performance_dataframe, which previously repeated this loop
+    identically apart from which per-symbol function they called."""
+    frames = [result for symbol in symbols if not (result := fn(symbol)).empty]
 
     if not frames:
         return pd.DataFrame()
@@ -922,6 +907,18 @@ def build_position_history(
         )
         .reset_index(drop=True)
     )
+
+
+def build_position_history(
+    fills,
+    bars,
+    symbols,
+):
+
+    if bars.empty:
+        return pd.DataFrame()
+
+    return _concat_per_symbol(symbols, lambda symbol: reconstruct_symbol_quantity(fills, bars, symbol))
 
 
 # ============================================================
@@ -978,19 +975,6 @@ def calculate_position_period_return(
     return df
 
 
-def calculate_position_twr(
-    position_df,
-    fills,
-    symbol,
-):
-    """Deprecated alias kept for compatibility — uses period price return."""
-
-    return calculate_position_period_return(
-        position_df,
-        symbol,
-    )
-
-
 # ============================================================
 # BUILD PERFORMANCE DATAFRAME
 # ============================================================
@@ -1001,34 +985,7 @@ def build_performance_dataframe(
     symbols,
 ):
 
-    frames = []
-
-    for symbol in symbols:
-
-        result = calculate_position_period_return(
-            position_history,
-            symbol,
-        )
-
-        if not result.empty:
-            frames.append(result)
-
-    if not frames:
-        return pd.DataFrame()
-
-    return (
-        pd.concat(
-            frames,
-            ignore_index=True,
-        )
-        .sort_values(
-            [
-                "symbol",
-                "timestamp",
-            ]
-        )
-        .reset_index(drop=True)
-    )
+    return _concat_per_symbol(symbols, lambda symbol: calculate_position_period_return(position_history, symbol))
 
 
 # ============================================================
@@ -1702,84 +1659,3 @@ def get_portfolio_chart(
             portfolio_data
         ),
     }
-
-# ============================================================
-# OPTIONAL FIGURE BUILDER
-# ============================================================
-
-def build_portfolio_figure(
-    chart_data,
-):
-    """
-    Optional Plotly figure builder.
-
-    Flask does not need to use this function because the
-    frontend uses Chart.js. It is provided for compatibility
-    with visualization/__init__.py and any existing imports.
-    """
-
-    try:
-
-        import plotly.graph_objects as go
-
-    except ImportError:
-
-        raise RuntimeError(
-            "Plotly is not installed. "
-            "Install it with: pip install plotly"
-        )
-
-    figure = go.Figure()
-
-    portfolio_series = None
-
-    for series in chart_data.get(
-        "series",
-        [],
-    ):
-
-        if series.get("type") == "portfolio":
-
-            portfolio_series = series
-            break
-
-    if portfolio_series:
-
-        timestamps = [
-            item["timestamp"]
-            for item in portfolio_series.get(
-                "data",
-                [],
-            )
-        ]
-
-        values = [
-            item["value"]
-            for item in portfolio_series.get(
-                "data",
-                [],
-            )
-        ]
-
-        figure.add_trace(
-            go.Scatter(
-                x=timestamps,
-                y=values,
-                mode="lines",
-                name="Portfolio Value",
-                line={
-                    "color": "#60a5fa",
-                    "width": 2,
-                },
-            )
-        )
-
-    figure.update_layout(
-        template="plotly_dark",
-        title="Portfolio Performance",
-        xaxis_title="Time",
-        yaxis_title="Portfolio Value ($)",
-        hovermode="x unified",
-    )
-
-    return figure

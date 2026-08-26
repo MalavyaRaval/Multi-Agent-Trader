@@ -6,12 +6,10 @@ Fetches news and estimates sentiment for a stock using Finnhub news API.
 
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta
 
-import requests
-
 from config import FINNHUB_API_KEY
+from data.finnhub import FinnhubClient
 
 
 class NewsAgent:
@@ -19,7 +17,7 @@ class NewsAgent:
 
     def __init__(self) -> None:
         self.api_key = FINNHUB_API_KEY
-        self.base_url = "https://finnhub.io/api/v1"
+        self.finnhub = FinnhubClient(self.api_key)
 
     def analyze(self, symbol: str) -> dict:
         symbol = symbol.upper()
@@ -32,14 +30,11 @@ class NewsAgent:
         try:
             end = datetime.utcnow()
             start = end - timedelta(days=7)
-            url = (
-                f"{self.base_url}/company-news"
-                f"?symbol={symbol}&from={start.strftime('%Y-%m-%d')}&to={end.strftime('%Y-%m-%d')}"
-                f"&token={self.api_key}"
-            )
-            resp = requests.get(url, timeout=15)
-            resp.raise_for_status()
-            articles = resp.json()
+            articles = self.finnhub.news(symbol, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+
+            if isinstance(articles, dict) and articles.get("error"):
+                result["status"] = f"news analysis error: {articles['error']}"
+                return result
 
             if not isinstance(articles, list):
                 result["status"] = "news analysis error (unexpected response)"

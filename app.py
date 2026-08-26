@@ -7,6 +7,13 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from agents.technical_agent import TechnicalAgent
+from config import FINNHUB_API_KEY, GEMINI_API_KEY
+from data.alpaca_client import has_alpaca_credentials
+from llm.gemini_client import MODEL_NAME as GEMINI_MODEL_NAME
+from indicators.ema import compute_ema_series
+from indicators.macd import compute_macd_series
+from indicators.bollinger import compute_bollinger_series
+from indicators.rsi import compute_rsi_series
 from market_data_agent import run_turn as run_market_data_agent_turn
 from trading_agent import get_account_info as get_trading_account_info
 from trading_agent import run_turn as run_trading_agent_turn
@@ -16,7 +23,6 @@ from memory.trade_history import TradeHistory
 from agents.screener_agent import ScreenerAgent
 from backtesting.engine import BacktestEngine
 from backtesting.report import generate_report
-from indicators.multiframe import analyze_multiframe
 from optimization.ensemble import StrategyEnsemble
 from memory.vector_store import VectorStore
 from memory.reflections import ReflectionEngine
@@ -36,6 +42,34 @@ from visualization.portfolio import (
     utc_now,
     TIMEFRAME_BY_RANGE,
 )
+
+# Canonical chart-mode alias table for /api/portfolio_chart. Every accepted
+# query-string spelling maps to exactly one of: return, normalized, price,
+# value, pnl, marketcap. Downstream code only ever compares against these
+# canonical tokens, never against alias spellings.
+CHART_MODE_ALIASES = {
+    "percent": "return",
+    "pct": "return",
+    "percent_change": "return",
+    "percentage": "return",
+    "return": "return",
+    "normalized": "normalized",
+    "normalized_price": "normalized",
+    "price_index": "normalized",
+    "price": "price",
+    "actual_price": "price",
+    "value": "value",
+    "portfolio": "value",
+    "portfolio_value": "value",
+    "pnl": "pnl",
+    "profit_loss": "pnl",
+    "dollar_profit_loss": "pnl",
+    "dollar_pnl": "pnl",
+    "marketcap": "marketcap",
+    "market_cap": "marketcap",
+    "market_cap_adjusted": "marketcap",
+    "marketcap_adjusted": "marketcap",
+}
 
 app = Flask(__name__)
 technical_agent = TechnicalAgent()
@@ -142,8 +176,6 @@ def api_chart_data():
     days = data.get("days", 90)
     try:
         from agents.market_agent import MarketAgent
-        import pandas as pd
-        import numpy as np
 
         market = MarketAgent()
         snapshot = market.snapshot(symbol, timeframe="1d", days=days)
@@ -161,29 +193,13 @@ def api_chart_data():
         open_p = pd.to_numeric(frame.get("open", close), errors="coerce")
         volume = pd.to_numeric(frame.get("volume", pd.Series(0, index=close.index)), errors="coerce")
 
-        # Moving Averages
-        ema20 = close.ewm(span=20, adjust=False).mean()
-        ema50 = close.ewm(span=50, adjust=False).mean()
-        
-        # MACD
-        ema12 = close.ewm(span=12, adjust=False).mean()
-        ema26 = close.ewm(span=26, adjust=False).mean()
-        macd_line = ema12 - ema26
-        macd_signal = macd_line.ewm(span=9, adjust=False).mean()
-        macd_hist = macd_line - macd_signal
-
-        # Bollinger Bands
-        sma20 = close.rolling(20).mean()
-        std20 = close.rolling(20).std()
-        bb_upper = sma20 + (std20 * 2)
-        bb_lower = sma20 - (std20 * 2)
-
-        # RSI (Wilder / EMA style)
-        delta = close.diff()
-        gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
-        loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
-        rs = gain / (loss.replace(0, 1e-9))
-        rsi_series = 100 - (100 / (1 + rs))
+        # Same indicator math the technical agent uses for live signals, so the
+        # chart panel and the trading decisions never disagree on indicator values.
+        ema20 = compute_ema_series(close, 20)
+        ema50 = compute_ema_series(close, 50)
+        macd_line, macd_signal, macd_hist = compute_macd_series(close)
+        bb_upper, bb_lower, _bb_mid = compute_bollinger_series(close, 20)
+        rsi_series = compute_rsi_series(close, 14)
 
         # Dates
         dates = []
@@ -222,13 +238,11 @@ def api_chart_data():
 @app.route("/api/diagnostics", methods=["GET"])
 def api_diagnostics():
     """Return health & connectivity status for all APIs."""
-    import os
-    alpaca_key = bool(os.getenv("ALPACA_API_KEY"))
-    alpaca_secret = bool(os.getenv("ALPACA_SECRET_KEY"))
-    finnhub_key = bool(os.getenv("FINNHUB_API_KEY"))
-    gemini_key = bool(os.getenv("GEMINI_API_KEY"))
+    alpaca_configured = has_alpaca_credentials()
+    finnhub_key = bool(FINNHUB_API_KEY)
+    gemini_key = bool(GEMINI_API_KEY)
 
-    alpaca_status = "ok" if (alpaca_key and alpaca_secret) else "missing_keys"
+    alpaca_status = "ok" if alpaca_configured else "missing_keys"
     finnhub_status = "ok" if finnhub_key else "missing_key"
     gemini_status = "ok" if gemini_key else "missing_key"
 
@@ -239,7 +253,7 @@ def api_diagnostics():
                 "name": "Alpaca Market & Trading API",
                 "status": alpaca_status,
                 "mode": "Paper Trading (Zero Risk)",
-                "keys_configured": alpaca_key and alpaca_secret,
+                "keys_configured": alpaca_configured,
             },
             "finnhub": {
                 "name": "Finnhub Fundamentals & News API",
@@ -251,7 +265,7 @@ def api_diagnostics():
                 "name": "Google Gemini LLM Engine",
                 "status": gemini_status,
                 "keys_configured": gemini_key,
-                "model": "gemini-3.1-flash-lite",
+                "model": GEMINI_MODEL_NAME,
                 "note": "Used for chat, trade reflections, and executive reasoning synthesis.",
             },
         }
@@ -447,15 +461,14 @@ def api_portfolio_chart():
         if portfolio_history.empty:
             return portfolio_data
 
-        chart_mode = str(chart_mode or "return").lower()
-
-        if chart_mode in {"value", "portfolio", "portfolio_value"}:
+        # chart_mode has already been canonicalized via CHART_MODE_ALIASES by the caller.
+        if chart_mode == "value":
             value_column = "equity"
-        elif chart_mode in {"pnl", "profit_loss", "dollar_profit_loss", "dollar_pnl"}:
+        elif chart_mode == "pnl":
             value_column = "pnl"
-        elif chart_mode in {"normalized", "normalized_price", "price_index"}:
+        elif chart_mode == "normalized":
             value_column = "normalized"
-        elif chart_mode in {"marketcap", "market_cap", "market_cap_adjusted"}:
+        elif chart_mode == "marketcap":
             value_column = "market_cap_adj"
         else:
             value_column = "return_pct"
@@ -549,31 +562,7 @@ def api_portfolio_chart():
             ) or "return"
         ).lower()
 
-        chart_mode_aliases = {
-            "percent": "return",
-            "pct": "return",
-            "percent_change": "return",
-            "percentage": "return",
-            "normalized": "normalized",
-            "normalized_price": "normalized",
-            "price_index": "normalized",
-            "price": "price",
-            "actual_price": "price",
-            "value": "value",
-            "portfolio": "value",
-            "portfolio_value": "value",
-            "pnl": "pnl",
-            "profit_loss": "pnl",
-            "dollar_profit_loss": "pnl",
-            "dollar_pnl": "pnl",
-            "marketcap": "marketcap",
-            "market_cap": "marketcap",
-            "market_cap_adjusted": "marketcap",
-            "marketcap_adjusted": "marketcap",
-            "return": "return",
-        }
-
-        chart_mode = chart_mode_aliases.get(chart_mode, "return")
+        chart_mode = CHART_MODE_ALIASES.get(chart_mode, "return")
 
         symbols_param = request.args.get(
             "symbols",
@@ -592,7 +581,7 @@ def api_portfolio_chart():
                 "error": f"Invalid range: {selected_range}",
             }), 400
 
-        if not os.getenv("ALPACA_API_KEY") or not os.getenv("ALPACA_SECRET_KEY"):
+        if not has_alpaca_credentials():
             return jsonify({
                 "status": "not_configured",
                 "error": (
@@ -706,7 +695,8 @@ def api_portfolio_chart():
                 else pd.DataFrame()
             )
 
-            if chart_mode in {"value", "portfolio", "portfolio_value"}:
+            # chart_mode has already been canonicalized via CHART_MODE_ALIASES above.
+            if chart_mode == "value":
 
                 df = position_history[
                     position_history["symbol"] == symbol
@@ -722,7 +712,7 @@ def api_portfolio_chart():
 
                 value_column = "market_value"
 
-            elif chart_mode in {"price", "actual_price"}:
+            elif chart_mode == "price":
 
                 df = position_history[
                     position_history["symbol"] == symbol
@@ -736,7 +726,7 @@ def api_portfolio_chart():
                 else:
                     value_column = "market_value"
 
-            elif chart_mode in {"normalized", "normalized_price", "price_index"}:
+            elif chart_mode == "normalized":
 
                 df = position_history[
                     position_history["symbol"] == symbol
@@ -759,7 +749,7 @@ def api_portfolio_chart():
                 else:
                     value_column = "market_value"
 
-            elif chart_mode in {"pnl", "profit_loss", "dollar_pnl"}:
+            elif chart_mode == "pnl":
 
                 df = position_history[
                     position_history["symbol"] == symbol
@@ -776,7 +766,7 @@ def api_portfolio_chart():
                 else:
                     value_column = "market_value"
 
-            elif chart_mode in {"marketcap", "market_cap", "market_cap_adjusted", "marketcap_adjusted"}:
+            elif chart_mode == "marketcap":
 
                 df = position_history[
                     position_history["symbol"] == symbol

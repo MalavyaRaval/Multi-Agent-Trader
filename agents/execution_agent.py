@@ -15,11 +15,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.common.exceptions import APIError
 
 from strategies.momentum import MomentumStrategy
 from strategies.trend_following import TrendFollowingStrategy
@@ -30,8 +26,8 @@ from memory.trade_history import TradeHistory
 from memory.reasoning import ReasoningEngine
 from sizing import target_volatility_size, risk_parity_size, half_kelly
 from optimization.ensemble import StrategyEnsemble
+from data.alpaca_client import get_trading_client, place_market_order
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Auto-execute threshold: only trade if confidence >= this value
@@ -45,14 +41,7 @@ class ExecutionAgent:
     name = "execution_agent"
 
     def __init__(self) -> None:
-        self._client: Optional[TradingClient] = None
-        api_key = os.getenv("ALPACA_API_KEY")
-        secret_key = os.getenv("ALPACA_SECRET_KEY")
-        if api_key and secret_key:
-            try:
-                self._client = TradingClient(api_key, secret_key, paper=True)
-            except Exception:
-                self._client = None
+        self._client: Optional[TradingClient] = get_trading_client()
         self.history = TradeHistory()
         self.ensemble = StrategyEnsemble()
         self.reasoning_engine = ReasoningEngine()
@@ -393,34 +382,15 @@ class ExecutionAgent:
         """Place a paper trade via Alpaca and log it."""
         if self._client is None:
             return {"status": "error", "error": "Alpaca client not initialized"}
-        symbol = symbol.upper()
-        side_enum = OrderSide.BUY if side.lower() == "buy" else OrderSide.SELL
-        order_kwargs = dict(symbol=symbol, side=side_enum, time_in_force=TimeInForce.DAY)
-        if qty is not None:
-            order_kwargs["qty"] = qty
-        elif notional is not None:
-            order_kwargs["notional"] = notional
-        else:
-            return {"status": "error", "error": "Must specify qty or notional"}
 
-        try:
-            order = self._client.submit_order(order_data=MarketOrderRequest(**order_kwargs))
-            result = {
-                "status": "submitted",
-                "order_id": str(order.id),
-                "symbol": order.symbol,
-                "side": side.upper(),
-                "qty": order.qty,
-                "order_status": order.status.value,
-            }
+        result = place_market_order(self._client, symbol, side, qty=qty, notional=notional)
+        if result.get("status") == "submitted":
             self.history.record_order(
-                symbol=symbol, side=side, qty=qty, notional=notional,
-                order_id=str(order.id), status=order.status.value,
+                symbol=symbol.upper(), side=side, qty=qty, notional=notional,
+                order_id=result["order_id"], status=result["order_status"],
                 reason=reason, confidence=confidence, context=context,
             )
-            return result
-        except APIError as e:
-            return {"status": "error", "error": str(e)}
+        return result
 
     def maybe_auto_trade(self, symbol: str, analysis: Dict[str, Any],
                          context: Optional[Dict] = None) -> Optional[dict]:

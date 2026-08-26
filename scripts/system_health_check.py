@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -42,13 +41,15 @@ from scripts import test_finnhub
 from scripts import test_gemini
 from scripts import test_indicators
 from scripts import test_pipeline
+from scripts._health_check_common import status_from_counts
+from observability.run_tracker import now_iso
 
 
 OUTPUT_FILE = ROOT_DIR / "data" / "system_health_latest.json"
 
 
 def run_test(module) -> Dict[str, Any]:
-    started = datetime.now(timezone.utc)
+    started_at = now_iso()
 
     try:
         result = module.run()
@@ -59,10 +60,7 @@ def run_test(module) -> Dict[str, Any]:
                 "error": "Test module returned a non-dictionary result.",
             }
 
-        result["started_at"] = result.get(
-            "started_at",
-            started.isoformat(),
-        )
+        result["started_at"] = result.get("started_at", started_at)
 
         return result
 
@@ -71,8 +69,8 @@ def run_test(module) -> Dict[str, Any]:
             "status": "FAIL",
             "error": str(exc),
             "error_type": type(exc).__name__,
-            "started_at": started.isoformat(),
-            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": started_at,
+            "finished_at": now_iso(),
         }
 
 
@@ -107,7 +105,7 @@ def _count_checks(section: Dict[str, Any]) -> Dict[str, int]:
 
 
 def build_report() -> Dict[str, Any]:
-    started_at = datetime.now(timezone.utc)
+    started_at = now_iso()
 
     sections = {
         "alpaca": run_test(test_alpaca_data),
@@ -134,17 +132,12 @@ def build_report() -> Dict[str, Any]:
 
         summary["checks"] += sum(counts.values())
 
-    if summary["fail"] > 0:
-        overall_status = "FAIL"
-    elif summary["warning"] > 0:
-        overall_status = "WARNING"
-    else:
-        overall_status = "PASS"
+    overall_status = status_from_counts(summary["fail"], summary["warning"])
 
     report = {
         "phase": "phase_0_baseline_audit",
-        "generated_at": started_at.isoformat(),
-        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": started_at,
+        "finished_at": now_iso(),
         "overall_status": overall_status,
         "symbol": test_alpaca_data.SYMBOL,
         "summary": summary,
@@ -218,6 +211,14 @@ def print_summary(report: Dict[str, Any]) -> None:
 
 
 def main() -> None:
+    # Some terminals (notably the default Windows console) use a legacy
+    # encoding that can't represent the status emoji below; degrade to '?'
+    # instead of crashing rather than dropping the emoji everywhere.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except Exception:
+        pass
+
     report = build_report()
 
     save_report(report)

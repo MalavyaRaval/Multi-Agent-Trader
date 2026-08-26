@@ -16,13 +16,12 @@ This test performs one small generation request.
 
 from __future__ import annotations
 
-import json
 import os
-import time
-from datetime import datetime, timezone
 from typing import Any, Dict
 
 from dotenv import load_dotenv
+
+from scripts._health_check_common import finalize_report, make_check as _check, run_health_check_cli, timed
 
 load_dotenv()
 
@@ -32,22 +31,6 @@ MODEL_NAME = os.getenv(
 )
 
 PROMPT = "Reply with exactly: GEMINI_HEALTH_OK"
-
-
-def _check(
-    name: str,
-    status: str,
-    message: str = "",
-    **extra: Any,
-) -> Dict[str, Any]:
-    result = {
-        "name": name,
-        "status": status,
-        "message": message,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-    }
-    result.update(extra)
-    return result
 
 
 def run() -> Dict[str, Any]:
@@ -67,8 +50,7 @@ def run() -> Dict[str, Any]:
                 "GEMINI_API_KEY is missing.",
             )
         )
-        report["status"] = "FAIL"
-        return report
+        return finalize_report(report)
 
     report["checks"].append(
         _check(
@@ -101,20 +83,24 @@ def run() -> Dict[str, Any]:
             )
         )
 
-        report["status"] = "FAIL"
-        return report
+        return finalize_report(report)
 
     # ---------------------------------------------------------
     # Model availability
     # ---------------------------------------------------------
 
-    try:
-        started = time.perf_counter()
+    models, latency_ms, error = timed(lambda: list(client.models.list()))
 
-        models = list(client.models.list())
-
-        latency_ms = (time.perf_counter() - started) * 1000
-
+    if error is not None:
+        report["checks"].append(
+            _check(
+                "model_availability",
+                "WARNING",
+                f"Could not enumerate models: {error}",
+                error_type=type(error).__name__,
+            )
+        )
+    else:
         model_names = [
             getattr(model, "name", "")
             for model in models
@@ -156,30 +142,24 @@ def run() -> Dict[str, Any]:
                 )
             )
 
-    except Exception as exc:
-        report["checks"].append(
-            _check(
-                "model_availability",
-                "WARNING",
-                f"Could not enumerate models: {exc}",
-                error_type=type(exc).__name__,
-            )
-        )
-
     # ---------------------------------------------------------
     # Simple request
     # ---------------------------------------------------------
 
-    try:
-        started = time.perf_counter()
+    response, latency_ms, error = timed(
+        lambda: client.models.generate_content(model=MODEL_NAME, contents=PROMPT)
+    )
 
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=PROMPT,
+    if error is not None:
+        report["checks"].append(
+            _check(
+                "simple_request",
+                "FAIL",
+                str(error),
+                error_type=type(error).__name__,
+            )
         )
-
-        latency_ms = (time.perf_counter() - started) * 1000
-
+    else:
         response_text = getattr(response, "text", None)
 
         if not response_text:
@@ -210,16 +190,6 @@ def run() -> Dict[str, Any]:
                     latency_ms=latency_ms,
                 )
             )
-
-    except Exception as exc:
-        report["checks"].append(
-            _check(
-                "simple_request",
-                "FAIL",
-                str(exc),
-                error_type=type(exc).__name__,
-            )
-        )
 
     # ---------------------------------------------------------
     # Timeout handling
@@ -255,36 +225,11 @@ def run() -> Dict[str, Any]:
         )
     )
 
-    failures = [
-        item for item in report["checks"]
-        if item["status"] == "FAIL"
-    ]
-
-    warnings = [
-        item for item in report["checks"]
-        if item["status"] == "WARNING"
-    ]
-
-    report["status"] = (
-        "FAIL"
-        if failures
-        else "WARNING"
-        if warnings
-        else "PASS"
-    )
-
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
-
-    return report
+    return finalize_report(report)
 
 
 def main() -> None:
-    report = run()
-
-    print(json.dumps(report, indent=2, default=str))
-
-    if report["status"] == "FAIL":
-        raise SystemExit(1)
+    run_health_check_cli(run)
 
 
 if __name__ == "__main__":

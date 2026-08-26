@@ -75,7 +75,7 @@ Create a `.env` file and add:
 ALPACA_API_KEY=your_paper_key
 ALPACA_SECRET_KEY=your_paper_secret
 GEMINI_API_KEY=your_gemini_key
-FINNHUB_API_KEY=optional
+FINNHUB_API_KEY=for market data and news
 AUTO_EXECUTE_CONFIDENCE=0.75
 AUTO_TRADE_NOTIONAL=500
 ```

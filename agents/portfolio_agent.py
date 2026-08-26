@@ -6,28 +6,18 @@ Tracks current Alpaca paper-trading positions and account state.
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, Optional
 
-from dotenv import load_dotenv
 from alpaca.trading.client import TradingClient
 
-load_dotenv()
+from data.alpaca_client import account_to_dict, get_trading_client, positions_to_list
 
 
 class PortfolioAgent:
     name = "portfolio_agent"
 
     def __init__(self) -> None:
-        self._client: Optional[TradingClient] = None
-        api_key = os.getenv("ALPACA_API_KEY")
-        secret_key = os.getenv("ALPACA_SECRET_KEY")
-        if not api_key or not secret_key:
-            return
-        try:
-            self._client = TradingClient(api_key, secret_key, paper=True)
-        except Exception:
-            self._client = None
+        self._client: Optional[TradingClient] = get_trading_client()
 
     def analyze(self, symbol: str) -> dict:
         symbol = symbol.upper()
@@ -40,12 +30,7 @@ class PortfolioAgent:
         try:
             # Account info
             account = self._client.get_account()
-            result["account"] = {
-                "cash": account.cash,
-                "buying_power": account.buying_power,
-                "portfolio_value": account.portfolio_value,
-                "equity": account.equity,
-            }
+            result["account"] = account_to_dict(account)
 
             # Position for this symbol
             try:
@@ -63,16 +48,7 @@ class PortfolioAgent:
                 result["position"] = None  # No open position
 
             # All positions
-            all_positions = self._client.get_all_positions()
-            result["all_positions"] = [
-                {
-                    "symbol": p.symbol,
-                    "qty": p.qty,
-                    "market_value": p.market_value,
-                    "unrealized_pl": p.unrealized_pl,
-                }
-                for p in all_positions
-            ]
+            result["all_positions"] = positions_to_list(self._client.get_all_positions())
 
         except Exception as e:
             result["status"] = f"portfolio check error: {e}"
@@ -85,12 +61,6 @@ class PortfolioAgent:
         if self._client is None:
             return {}
         try:
-            a = self._client.get_account()
-            return {
-                "cash": a.cash,
-                "buying_power": a.buying_power,
-                "portfolio_value": a.portfolio_value,
-                "equity": a.equity,
-            }
+            return account_to_dict(self._client.get_account())
         except Exception:
             return {}

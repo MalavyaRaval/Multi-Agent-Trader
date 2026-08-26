@@ -21,13 +21,3 @@ def compute_atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int =
     atr = true_range.rolling(window=period, min_periods=period).mean()
     value = atr.iloc[-1]
     return float(value) if pd.notna(value) else None
-
-
-def calculate_atr(highs: list[float], lows: list[float], closes: list[float]) -> float:
-    """List-based ATR (backward compat)."""
-    if not highs or not lows or not closes:
-        return 0.0
-    h = pd.Series(highs)
-    l = pd.Series(lows)
-    c = pd.Series(closes)
-    return compute_atr(h, l, c, 14)

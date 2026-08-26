@@ -9,31 +9,21 @@ Chat-based PAPER TRADING agent.
 Run it with:  python trading_agent.py
 """
 
-import os
-import json
+from alpaca.trading.enums import OrderSide
 
-from dotenv import load_dotenv
-from google import genai
-
-from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import MarketOrderRequest
-from alpaca.trading.enums import OrderSide, TimeInForce
-from alpaca.common.exceptions import APIError
-from alpaca.data.historical import StockHistoricalDataClient
-from alpaca.data.requests import StockLatestQuoteRequest
+from agents.market_agent import MarketAgent
+from config import ALPACA_API_KEY, ALPACA_SECRET_KEY, GEMINI_API_KEY
+from data.alpaca_client import (
+    account_to_dict,
+    get_trading_client,
+    place_market_order,
+    positions_to_list,
+)
+from llm.gemini_client import get_gemini_client, run_tool_loop
 
 # --------------------------------------------------------------------------
 # Config
 # --------------------------------------------------------------------------
-
-load_dotenv()
-
-ALPACA_API_KEY = os.getenv("ALPACA_API_KEY")
-ALPACA_SECRET_KEY = os.getenv("ALPACA_SECRET_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-MODEL_NAME = "gemini-3.1-flash-lite"          # current free-tier Gemini model
-MAX_TOOL_ROUNDS = 8                      # safety cap on chained tool calls per turn
 
 # Ask "y/n" before any order actually gets sent to Alpaca. Flip to False if you
 # want the agent to place orders immediately without a confirmation prompt.
@@ -43,17 +33,9 @@ CONFIGURED = bool(ALPACA_API_KEY and ALPACA_SECRET_KEY and GEMINI_API_KEY)
 
 # Keep the dashboard usable without credentials. API-backed actions return a
 # clear configuration error until paper-trading credentials are supplied.
-trading_client = (
-    TradingClient(ALPACA_API_KEY, ALPACA_SECRET_KEY, paper=True)
-    if ALPACA_API_KEY and ALPACA_SECRET_KEY
-    else None
-)
-data_client = (
-    StockHistoricalDataClient(ALPACA_API_KEY, ALPACA_SECRET_KEY)
-    if ALPACA_API_KEY and ALPACA_SECRET_KEY
-    else None
-)
-gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+trading_client = get_trading_client()
+market_agent = MarketAgent()
+gemini_client = get_gemini_client()
 
 
 def _configuration_error() -> dict:
@@ -99,46 +81,26 @@ def get_account_info():
     """Get paper account cash, buying power, portfolio value, and equity."""
     if trading_client is None:
         return _configuration_error()
-    a = trading_client.get_account()
-    return {
-        "cash": a.cash,
-        "buying_power": a.buying_power,
-        "portfolio_value": a.portfolio_value,
-        "equity": a.equity,
-    }
+    return account_to_dict(trading_client.get_account())
 
 
 def get_positions():
     """List every stock currently held in the paper account, with qty and P&L."""
     if trading_client is None:
         return _configuration_error()
-    positions = trading_client.get_all_positions()
-    return {
-        "positions": [
-            {
-                "symbol": p.symbol,
-                "qty": p.qty,
-                "avg_entry_price": p.avg_entry_price,
-                "current_price": p.current_price,
-                "market_value": p.market_value,
-                "unrealized_pl": p.unrealized_pl,
-            }
-            for p in positions
-        ]
-    }
+    return {"positions": positions_to_list(trading_client.get_all_positions())}
 
 
 def get_stock_price(symbol: str):
     """Get the latest bid/ask quote for a stock ticker symbol."""
-    if data_client is None:
+    if market_agent.client is None:
         return _configuration_error()
     symbol = symbol.upper()
     try:
-        req = StockLatestQuoteRequest(symbol_or_symbols=[symbol])
-        quote = data_client.get_stock_latest_quote(req)[symbol]
+        quote = market_agent.latest_quote(symbol)
         return {"symbol": symbol, "bid_price": quote.bid_price, "ask_price": quote.ask_price}
     except Exception as e:
-        return {"error": str(e)}
+        return {"status": "error", "error": str(e)}
 
 
 def buy_stock(symbol: str, qty: float = None, notional: float = None):
@@ -156,33 +118,9 @@ def sell_stock(symbol: str, qty: float = None, notional: float = None):
 
 
 def _place_order(symbol: str, side: OrderSide, qty, notional):
-    symbol = symbol.upper()
-
     if trading_client is None:
         return _configuration_error()
-    if qty is None and notional is None:
-        return {"status": "error", "error": "Must specify either qty or notional."}
-    if qty is not None and notional is not None:
-        return {"status": "error", "error": "Specify only one of qty or notional, not both."}
-
-    order_kwargs = dict(symbol=symbol, side=side, time_in_force=TimeInForce.DAY)
-    if qty is not None:
-        order_kwargs["qty"] = qty
-    else:
-        order_kwargs["notional"] = notional
-
-    try:
-        order = trading_client.submit_order(order_data=MarketOrderRequest(**order_kwargs))
-        return {
-            "status": "submitted",
-            "order_id": str(order.id),
-            "symbol": order.symbol,
-            "qty": order.qty,
-            "side": order.side.value,
-            "order_status": order.status.value,
-        }
-    except APIError as e:
-        return {"status": "error", "error": str(e)}
+    return place_market_order(trading_client, symbol, side, qty=qty, notional=notional)
 
 
 TOOL_IMPLS = {
@@ -266,56 +204,15 @@ def run_turn(user_text: str, previous_interaction_id):
             previous_interaction_id,
         )
 
-    kwargs = dict(
-        model=MODEL_NAME,
-        input=user_text,
-        tools=TOOL_DECLARATIONS,
+    return run_tool_loop(
+        gemini_client,
+        user_text,
+        previous_interaction_id,
+        tool_impls=TOOL_IMPLS,
+        tool_declarations=TOOL_DECLARATIONS,
         system_instruction=SYSTEM_INSTRUCTION,
+        # Use the default is_error (checks both "error" and status=="error"): this
+        # file's tool functions return a mix of {"error": ...} (get_stock_price) and
+        # {"status": "error"/"not_configured", "error": ...} (everything else), and
+        # the default catches all of those shapes.
     )
-    if previous_interaction_id:
-        kwargs["previous_interaction_id"] = previous_interaction_id
-
-    try:
-        interaction = gemini_client.interactions.create(**kwargs)
-    except Exception as e:
-        return f"(Gemini API error: {e})", previous_interaction_id
-
-    for _ in range(MAX_TOOL_ROUNDS):
-        fn_calls = [s for s in interaction.steps if s.type == "function_call"]
-        if not fn_calls:
-            break
-
-        results_input = []
-        for step in fn_calls:
-            fn = TOOL_IMPLS.get(step.name)
-            if fn is None:
-                result, is_error = {"error": f"Unknown tool '{step.name}'"}, True
-            else:
-                try:
-                    result = fn(**step.arguments)
-                    is_error = isinstance(result, dict) and result.get("status") == "error"
-                except Exception as e:
-                    result, is_error = {"error": str(e)}, True
-
-            results_input.append(
-                {
-                    "type": "function_result",
-                    "name": step.name,
-                    "call_id": step.id,
-                    "result": [{"type": "text", "text": json.dumps(result)}],
-                    "is_error": is_error,
-                }
-            )
-
-        try:
-            interaction = gemini_client.interactions.create(
-                model=MODEL_NAME,
-                input=results_input,
-                tools=TOOL_DECLARATIONS,
-                system_instruction=SYSTEM_INSTRUCTION,
-                previous_interaction_id=interaction.id,
-            )
-        except Exception as e:
-            return f"(Gemini API error while sending tool result: {e})", interaction.id
-
-    return (interaction.output_text or "(no response text)"), interaction.id

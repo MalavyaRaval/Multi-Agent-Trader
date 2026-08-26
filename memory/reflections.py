@@ -7,26 +7,15 @@ past trades and generate insights.
 
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-from google import genai
-
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = "gemini-3.1-flash-lite"
+from llm.gemini_client import get_gemini_client, safe_generate
 
 
 class ReflectionEngine:
     def __init__(self) -> None:
         self.notes: list[str] = []
-        self._client = None
-        if GEMINI_API_KEY:
-            try:
-                self._client = genai.Client(api_key=GEMINI_API_KEY)
-            except Exception:
-                pass
+        self._client = get_gemini_client()
 
     def add(self, note: str) -> None:
         self.notes.append(note)
@@ -55,19 +44,12 @@ Provide:
 2. One specific lesson for future trades
 Keep it under 80 words total."""
 
-        try:
-            response = self._client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-            )
-            text = response.text or "No reflection generated."
-            return {
-                "reflection": text,
-                "trade_id": trade.get("order_id", "unknown"),
-                "symbol": symbol,
-            }
-        except Exception as e:
-            return {"reflection": f"Reflection failed: {e}", "lessons": []}
+        text = safe_generate(self._client, prompt)
+        return {
+            "reflection": text or "No reflection generated.",
+            "trade_id": trade.get("order_id", "unknown"),
+            "symbol": symbol,
+        }
 
     def reflect_on_period(self, trades: list[dict]) -> dict:
         """Generate a summary reflection across multiple trades."""
@@ -88,16 +70,10 @@ Stats:
 Give 2-3 bullet points of actionable advice based on these stats.
 Keep under 100 words."""
 
-        try:
-            response = self._client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-            )
-            return {
-                "reflection": response.text or "No reflection generated.",
-                "trade_count": len(trades),
-                "win_count": len(wins),
-                "loss_count": len(losses),
-            }
-        except Exception as e:
-            return {"reflection": f"Reflection failed: {e}", "patterns": []}
+        text = safe_generate(self._client, prompt)
+        return {
+            "reflection": text or "No reflection generated.",
+            "trade_count": len(trades),
+            "win_count": len(wins),
+            "loss_count": len(losses),
+        }

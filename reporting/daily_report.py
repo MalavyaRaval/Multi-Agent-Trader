@@ -2,25 +2,25 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from backtesting.report import compute_trade_stats
+
 
 def build_daily_report(trades: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Build a lightweight daily report from recent trades."""
     trades = trades or []
-    total_pnl = sum(float(t.get("pnl", 0) or 0) for t in trades)
-    winning = [t for t in trades if float(t.get("pnl", 0) or 0) > 0]
-    losing = [t for t in trades if float(t.get("pnl", 0) or 0) <= 0]
+    stats = compute_trade_stats(trades)
 
     return {
         "report_type": "daily",
         "summary": {
-            "trade_count": len(trades),
-            "winning_trades": len(winning),
-            "losing_trades": len(losing),
-            "total_pnl": round(total_pnl, 2),
-            "avg_pnl": round(total_pnl / len(trades), 2) if trades else 0.0,
+            "trade_count": stats["trade_count"],
+            "winning_trades": stats["winning_trades"],
+            "losing_trades": stats["losing_trades"],
+            "total_pnl": stats["total_pnl"],
+            "avg_pnl": stats["avg_trade_pnl"],
         },
         "highlights": [
             f"Processed {len(trades)} trades",
-            f"Net P&L: ${round(total_pnl, 2):,.2f}",
+            f"Net P&L: ${stats['total_pnl']:,.2f}",
         ],
     }

@@ -17,7 +17,7 @@ The dashboard is served at port 5000. The workflow "Start application" runs it a
 | `ALPACA_API_KEY` | Alpaca paper trading key |
 | `ALPACA_SECRET_KEY` | Alpaca paper trading secret |
 | `GEMINI_API_KEY` | Google Gemini AI (agents) |
-| `FINNHUB_API_KEY` | Finnhub news/fundamentals (optional) |
+| `FINNHUB_API_KEY` | Finnhub news/fundamentals |
 
 ## Stack
 

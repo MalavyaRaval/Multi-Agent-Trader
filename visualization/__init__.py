@@ -1,5 +1,4 @@
 from .portfolio import (
-    build_portfolio_figure,
     get_portfolio_chart,
     get_account,
     get_current_positions,
@@ -7,7 +6,6 @@ from .portfolio import (
 )
 
 __all__ = [
-    "build_portfolio_figure",
     "get_portfolio_chart",
     "get_account",
     "get_current_positions",

@@ -14,6 +14,8 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from observability.run_tracker import now_iso
+
 
 DEFAULT_WEIGHTS_PATH = os.path.join(os.path.dirname(__file__), "strategy_weights.json")
 
@@ -48,7 +50,7 @@ class StrategyEnsemble:
     def save(self) -> None:
         try:
             with open(self.weights_path, "w") as f:
-                json.dump({"weights": self.weights, "updated_at": _now_iso()}, f, indent=2)
+                json.dump({"weights": self.weights, "updated_at": now_iso()}, f, indent=2)
         except Exception:
             pass
 
@@ -197,8 +199,3 @@ class StrategyEnsemble:
 
     def get_weights(self) -> Dict[str, float]:
         return dict(self.weights)
-
-
-def _now_iso() -> str:
-    from datetime import datetime, timezone
-    return datetime.now(timezone.utc).isoformat()

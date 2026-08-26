@@ -10,11 +10,11 @@ from __future__ import annotations
 import json
 import os
 import threading
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from config import MEMORY_DIR
+from observability.run_tracker import now_iso
 
 
 class TradeHistory:
@@ -40,7 +40,7 @@ class TradeHistory:
             json.dump(data, f, indent=2, default=str)
 
     def record(self, record: Dict[str, Any]) -> None:
-        record["recorded_at"] = datetime.utcnow().isoformat()
+        record["recorded_at"] = now_iso()
         with self._lock:
             history = self._read()
             history.append(record)
@@ -127,22 +127,6 @@ class TradeHistory:
             "win_rate": round(win_rate, 2),
             "avg_win": round(avg_win, 2),
             "avg_loss": round(avg_loss, 2),
-            "recent": orders[-5:][::-1],
-        }
-        with self._lock:
-            history = self._read()
-        orders = [h for h in history if h.get("type") == "order"]
-        analyses = [h for h in history if h.get("type") == "analysis"]
-        buy_orders = [o for o in orders if o.get("side") == "buy"]
-        sell_orders = [o for o in orders if o.get("side") == "sell"]
-
-        # Win rate estimation: compare sell vs buy average notional
-        # (Very rough — real P&L needs Alpaca fills)
-        return {
-            "total_orders": len(orders),
-            "total_analyses": len(analyses),
-            "buy_orders": len(buy_orders),
-            "sell_orders": len(sell_orders),
             "recent": orders[-5:][::-1],
         }
 

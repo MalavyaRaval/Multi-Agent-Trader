@@ -8,18 +8,64 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
+
+
+def compute_trade_stats(
+    trades: List[Any],
+    pnl_getter: Callable[[Any], float] = lambda t: t.get("pnl", 0) or 0,
+) -> Dict[str, Any]:
+    """
+    Partition trades by win/loss and summarize P&L. Shared by backtesting/report.py,
+    backtesting/engine.py, and reporting/daily_report.py so the same win/loss/P&L
+    numbers aren't computed three slightly-different ways.
+
+    pnl_getter lets callers pass either plain dicts (the default, `t["pnl"]`) or
+    objects like BacktestTrade (`pnl_getter=lambda t: t.pnl`).
+    """
+    pnls = [float(pnl_getter(t)) for t in trades]
+    winning = [p for p in pnls if p > 0]
+    losing = [p for p in pnls if p <= 0]
+    total_pnl = sum(pnls)
+    gross_profit = sum(p for p in pnls if p > 0)
+    gross_loss = abs(sum(p for p in pnls if p < 0))
+
+    return {
+        "trade_count": len(trades),
+        "winning_trades": len(winning),
+        "losing_trades": len(losing),
+        "total_pnl": round(total_pnl, 2),
+        "avg_trade_pnl": round(total_pnl / len(trades), 2) if trades else 0.0,
+        "best_trade_pnl": round(max(pnls), 2) if pnls else 0.0,
+        "worst_trade_pnl": round(min(pnls), 2) if pnls else 0.0,
+        "profit_factor": round(gross_profit / gross_loss, 2) if gross_loss > 0 else (999.0 if gross_profit > 0 else 0.0),
+    }
 
 
 def generate_report(backtest_dict: dict) -> dict:
     """Enrich a backtest result with additional performance metrics."""
     report = dict(backtest_dict)
 
+    trades = report.get("trades", [])
+    stats = compute_trade_stats(trades)
+    report["total_pnl"] = stats["total_pnl"]
+    report["avg_trade_pnl"] = stats["avg_trade_pnl"]
+    report["profit_factor"] = stats["profit_factor"]
+    report["best_trade_pnl"] = stats["best_trade_pnl"]
+    report["worst_trade_pnl"] = stats["worst_trade_pnl"]
+    report.setdefault("total_trades", stats["trade_count"])
+    report.setdefault("winning_trades", stats["winning_trades"])
+    report.setdefault("losing_trades", stats["losing_trades"])
+    report.setdefault("max_drawdown_pct", 0.0)
+
+    # Total return %
+    initial = report.get("initial_cash", 1)
+    final = report.get("final_cash", initial)
+    report["total_return_pct"] = round((final - initial) / initial * 100, 2) if initial else 0.0
+
     equity_curve = report.get("equity_curve", [])
     if len(equity_curve) < 2:
         report["sharpe_ratio"] = 0.0
-        report["avg_trade_pnl"] = 0.0
-        report["profit_factor"] = 0.0
         return report
 
     # Compute daily returns from equity curve
@@ -42,31 +88,6 @@ def generate_report(backtest_dict: dict) -> dict:
         sharpe = 0.0
 
     report["sharpe_ratio"] = round(sharpe, 2)
-
-    # Average trade P&L
-    trades = report.get("trades", [])
-    if trades:
-        report["avg_trade_pnl"] = round(sum(t["pnl"] for t in trades) / len(trades), 2)
-    else:
-        report["avg_trade_pnl"] = 0.0
-
-    # Profit factor = gross profit / gross loss
-    gross_profit = sum(t["pnl"] for t in trades if t["pnl"] > 0)
-    gross_loss = abs(sum(t["pnl"] for t in trades if t["pnl"] < 0))
-    report["profit_factor"] = round(gross_profit / gross_loss, 2) if gross_loss > 0 else (999.0 if gross_profit > 0 else 0.0)
-
-    # Total return %
-    initial = report.get("initial_cash", 1)
-    final = report.get("final_cash", initial)
-    report["total_return_pct"] = round((final - initial) / initial * 100, 2)
-
-    # Best / worst trade
-    if trades:
-        report["best_trade_pnl"] = round(max(t["pnl"] for t in trades), 2)
-        report["worst_trade_pnl"] = round(min(t["pnl"] for t in trades), 2)
-    else:
-        report["best_trade_pnl"] = 0.0
-        report["worst_trade_pnl"] = 0.0
 
     return report
 

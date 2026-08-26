@@ -9,27 +9,16 @@ step-by-step reasoning explanations for every multi-agent decision.
 from __future__ import annotations
 
 import json
-import os
 from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
-from google import genai
-
-load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = "gemini-3.1-flash-lite"
+from llm.gemini_client import get_gemini_client, safe_generate
 
 
 class ReasoningEngine:
     """Synthesizes structured trade reasoning combining rule-based math and Gemini LLM insights."""
 
     def __init__(self) -> None:
-        self._client = None
-        if GEMINI_API_KEY:
-            try:
-                self._client = genai.Client(api_key=GEMINI_API_KEY)
-            except Exception:
-                self._client = None
+        self._client = get_gemini_client()
 
     def synthesize_reasoning(
         self,
@@ -154,9 +143,7 @@ class ReasoningEngine:
         }
 
         # Try to refine executive summary with Gemini if API key available
-        if self._client is not None:
-            try:
-                llm_prompt = f"""You are the Chief Investment Officer AI of a multi-agent trading system.
+        llm_prompt = f"""You are the Chief Investment Officer AI of a multi-agent trading system.
 Synthesize a concise, 2-3 sentence executive rationale for a user based on the following analysis data:
 
 Symbol: {symbol}
@@ -169,13 +156,8 @@ Strategies Voting: {strat_summary}
 
 Explain clearly WHY this decision was reached in professional, accessible terms."""
 
-                response = self._client.models.generate_content(
-                    model=MODEL_NAME,
-                    contents=llm_prompt,
-                )
-                if response and response.text:
-                    reasoning_dict["executive_summary"] = response.text.strip()
-            except Exception:
-                pass  # Fall back to heuristic executive summary
+        llm_summary = safe_generate(self._client, llm_prompt)
+        if llm_summary:
+            reasoning_dict["executive_summary"] = llm_summary
 
         return reasoning_dict

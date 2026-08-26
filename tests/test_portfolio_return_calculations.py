@@ -180,10 +180,12 @@ def test_get_stock_bars_falls_back_to_sip_when_iex_has_no_data(monkeypatch):
 def test_neutral_signal_has_low_hold_confidence():
     from strategies.momentum import MomentumStrategy
 
-    decision, confidence = MomentumStrategy._score_to_decision(0.0)
+    vote = MomentumStrategy().evaluate(
+        {"technical": {"signals": {}}, "fundamental": {}, "news": {}}
+    )
 
-    assert decision == "hold"
-    assert confidence == 0.0
+    assert vote["decision"] == "hold"
+    assert vote["confidence"] == 0.0
 
 
 def test_indicator_missing_data_returns_none_not_zero():

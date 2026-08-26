@@ -6,6 +6,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 
+def now_iso() -> str:
+    """Current UTC time as a timezone-aware ISO-8601 string. Single source of
+    truth so observability, memory, and optimization timestamps stay comparable."""
+    return datetime.now(timezone.utc).isoformat()
+
+
 class RunTracker:
     """Simple JSONL event collector for observability runs."""
 
@@ -27,7 +33,7 @@ class RunTracker:
         symbol = (symbol or "UNKNOWN").upper()
         if run_id is None:
             run_id = self.generate_run_id(symbol)
-        started_at = datetime.now(timezone.utc).isoformat()
+        started_at = now_iso()
         run = {
             "run_id": run_id,
             "symbol": symbol,
@@ -67,7 +73,7 @@ class RunTracker:
             "run_id": run_id,
             "agent": agent,
             "event": event,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": now_iso(),
             "status": status,
             "symbol": (symbol or self._runs.get(run_id, {}).get("symbol") or "").upper(),
         }

@@ -9,8 +9,15 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+import pandas as pd
+
 from agents.market_agent import MarketAgent
-from agents.technical_agent import TechnicalAgent
+from indicators.atr import compute_atr
+from indicators.bollinger import compute_bollinger
+from indicators.ema import compute_ema
+from indicators.macd import compute_macd
+from indicators.rsi import compute_rsi
+from indicators.volume import compute_volume_signals
 
 
 TIMEFRAMES = ["1d", "1h", "15m", "5m"]
@@ -21,7 +28,6 @@ def analyze_multiframe(symbol: str, timeframes=None) -> dict:
     timeframes = timeframes or TIMEFRAMES
     symbol = symbol.upper()
     market = MarketAgent()
-    technical = TechnicalAgent()
 
     frame_results: Dict[str, Any] = {}
     for tf in timeframes:
@@ -36,14 +42,9 @@ def analyze_multiframe(symbol: str, timeframes=None) -> dict:
                 frame_results[tf] = {"status": "insufficient_data"}
                 continue
 
-            # Compute signals manually for this timeframe
-            import pandas as pd
-            from indicators.rsi import compute_rsi
-            from indicators.macd import compute_macd
-            from indicators.ema import compute_ema
-            from indicators.volume import compute_volume_signals
-
             close = pd.to_numeric(bars["close"], errors="coerce")
+            high = pd.to_numeric(bars.get("high", close), errors="coerce")
+            low = pd.to_numeric(bars.get("low", close), errors="coerce")
             volume = pd.to_numeric(bars.get("volume", pd.Series([0] * len(bars))), errors="coerce")
 
             signals = {}
@@ -55,6 +56,13 @@ def analyze_multiframe(symbol: str, timeframes=None) -> dict:
                 signals["ema_20"] = compute_ema(close, 20)
             if len(close) >= 50:
                 signals["ema_50"] = compute_ema(close, 50)
+            if len(close) >= 15:
+                signals["atr_14"] = compute_atr(high, low, close, 14)
+            if len(close) >= 20:
+                bb_upper, bb_lower, bb_mid = compute_bollinger(close, 20)
+                signals["bollinger_upper"] = bb_upper
+                signals["bollinger_middle"] = bb_mid
+                signals["bollinger_lower"] = bb_lower
             if len(volume) >= 20:
                 vol_sigs = compute_volume_signals(volume, close)
                 signals.update(vol_sigs)

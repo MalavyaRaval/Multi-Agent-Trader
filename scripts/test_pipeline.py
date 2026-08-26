@@ -18,27 +18,10 @@ NO REAL ORDER IS PLACED.
 from __future__ import annotations
 
 import importlib
-import json
-import os
 import pkgutil
-from datetime import datetime, timezone
 from typing import Any, Dict
 
-
-def _check(
-    name: str,
-    status: str,
-    message: str = "",
-    **extra: Any,
-) -> Dict[str, Any]:
-    result = {
-        "name": name,
-        "status": status,
-        "message": message,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-    }
-    result.update(extra)
-    return result
+from scripts._health_check_common import finalize_report, make_check as _check, run_health_check_cli
 
 
 def _find_flask_app():
@@ -353,36 +336,11 @@ def run() -> Dict[str, Any]:
             )
         )
 
-    failures = [
-        item for item in report["checks"]
-        if item["status"] == "FAIL"
-    ]
-
-    warnings = [
-        item for item in report["checks"]
-        if item["status"] == "WARNING"
-    ]
-
-    report["status"] = (
-        "FAIL"
-        if failures
-        else "WARNING"
-        if warnings
-        else "PASS"
-    )
-
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
-
-    return report
+    return finalize_report(report)
 
 
 def main() -> None:
-    report = run()
-
-    print(json.dumps(report, indent=2, default=str))
-
-    if report["status"] == "FAIL":
-        raise SystemExit(1)
+    run_health_check_cli(run)
 
 
 if __name__ == "__main__":

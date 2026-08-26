@@ -15,7 +15,6 @@ import json
 import os
 import threading
 import time
-from datetime import datetime
 from typing import Any, Callable, Dict, List, Optional
 
 from dotenv import load_dotenv
@@ -29,6 +28,7 @@ from agents.execution_agent import ExecutionAgent
 from agents.portfolio_agent import PortfolioAgent
 from indicators.multiframe import analyze_multiframe
 from observability import RunTracker
+from observability.run_tracker import now_iso
 
 load_dotenv()
 
@@ -53,7 +53,7 @@ class MessageBus:
         symbol: Optional[str] = None,
     ) -> None:
         entry = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": now_iso(),
             "from": from_agent,
             "to": to_agent,
             "message": message,
@@ -133,13 +133,6 @@ class Orchestrator:
         self._thread: Optional[threading.Thread] = None
         self._last_analysis: Optional[Dict[str, Any]] = None
 
-    @staticmethod
-    def generate_run_id(symbol: str) -> str:
-        """Generate a unique, human-readable run identifier for an analysis cycle."""
-        now = datetime.utcnow()
-        stamp = now.strftime("%Y%m%d-%H%M%S")
-        return f"RUN-{stamp}-{symbol.upper()}"
-
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -147,9 +140,9 @@ class Orchestrator:
     def analyze_symbol(self, symbol: str, auto_execute: bool = False) -> Dict[str, Any]:
         """Run the full multi-agent analysis pipeline on a symbol with rich telemetry."""
         symbol = symbol.upper()
-        run_id = self.generate_run_id(symbol)
+        run_id = self.run_tracker.generate_run_id(symbol)
         session_id = run_id
-        started_at = datetime.utcnow().isoformat()
+        started_at = now_iso()
         self.run_tracker.start_run(symbol, run_id=run_id)
         self.run_tracker.emit_event(
             "orchestrator",
@@ -503,7 +496,7 @@ class Orchestrator:
             "session_id": session_id,
             "symbol": symbol,
             "started_at": started_at,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": now_iso(),
             "status": "completed",
             "analyses": analyses,
             "auto_trade": auto_result,

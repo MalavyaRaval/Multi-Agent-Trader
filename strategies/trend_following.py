@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
+from strategies.common import finalize_vote
+
 
 class TrendFollowingStrategy:
     name = "trend_following"
@@ -69,21 +71,7 @@ class TrendFollowingStrategy:
             score -= 0.3
             reasons.append("Volume supports downtrend")
 
-        decision, confidence = self._score_to_decision(score)
-        data_status = "ok" if signals else "partial"
-        return {
-            "strategy": self.name,
-            "decision": decision,
-            "confidence": round(confidence, 2),
-            "raw_score": round(score, 2),
-            "reason": "; ".join(reasons) if reasons else "No clear trend",
-            "data_status": data_status,
-        }
-
-    @staticmethod
-    def _score_to_decision(score: float):
-        if score >= 1.2:
-            return "buy", min(score / 2.5, 1.0)
-        if score <= -1.2:
-            return "sell", min(abs(score) / 2.5, 1.0)
-        return "hold", max(0.0, 1.0 - abs(score) / 1.2)
+        return finalize_vote(
+            self.name, score, reasons, signals,
+            threshold=1.2, scale=2.5, empty_reason="No clear trend",
+        )

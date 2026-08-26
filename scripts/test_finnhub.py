@@ -16,14 +16,14 @@ Tests:
 
 from __future__ import annotations
 
-import json
 import os
-import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 import requests
 from dotenv import load_dotenv
+
+from scripts._health_check_common import finalize_report, make_check as _check, run_health_check_cli, timed
 
 load_dotenv()
 
@@ -32,54 +32,26 @@ SYMBOL = os.getenv("DEFAULT_SYMBOL", "AAPL").upper()
 TIMEOUT = float(os.getenv("FINNHUB_TIMEOUT_SECONDS", "10"))
 
 
-def _check(
-    name: str,
-    status: str,
-    message: str = "",
-    **extra: Any,
-) -> Dict[str, Any]:
-    result = {
-        "name": name,
-        "status": status,
-        "message": message,
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-    }
-    result.update(extra)
-    return result
-
-
 def _request(
     endpoint: str,
     params: Dict[str, Any],
 ) -> tuple[Any, float, requests.Response | None, Exception | None]:
 
-    started = time.perf_counter()
+    response, latency_ms, error = timed(
+        lambda: requests.get(f"{API_BASE}/{endpoint}", params=params, timeout=TIMEOUT)
+    )
+    if error is not None:
+        return None, latency_ms, None, error
 
     try:
-        response = requests.get(
-            f"{API_BASE}/{endpoint}",
-            params=params,
-            timeout=TIMEOUT,
-        )
+        payload = response.json()
+    except ValueError:
+        payload = response.text
 
-        latency_ms = (time.perf_counter() - started) * 1000
+    if not response.ok:
+        return payload, latency_ms, response, RuntimeError(f"HTTP {response.status_code}: {payload}")
 
-        try:
-            payload = response.json()
-        except ValueError:
-            payload = response.text
-
-        if not response.ok:
-            error = RuntimeError(
-                f"HTTP {response.status_code}: {payload}"
-            )
-            return payload, latency_ms, response, error
-
-        return payload, latency_ms, response, None
-
-    except Exception as exc:
-        latency_ms = (time.perf_counter() - started) * 1000
-        return None, latency_ms, None, exc
+    return payload, latency_ms, response, None
 
 
 def run() -> Dict[str, Any]:
@@ -99,8 +71,7 @@ def run() -> Dict[str, Any]:
                 "FINNHUB_API_KEY is missing.",
             )
         )
-        report["status"] = "FAIL"
-        return report
+        return finalize_report(report)
 
     report["checks"].append(
         _check(
@@ -350,36 +321,11 @@ def run() -> Dict[str, Any]:
     # Overall
     # ---------------------------------------------------------
 
-    failures = [
-        item for item in report["checks"]
-        if item["status"] == "FAIL"
-    ]
-
-    warnings = [
-        item for item in report["checks"]
-        if item["status"] == "WARNING"
-    ]
-
-    report["status"] = (
-        "FAIL"
-        if failures
-        else "WARNING"
-        if warnings
-        else "PASS"
-    )
-
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
-
-    return report
+    return finalize_report(report)
 
 
 def main() -> None:
-    report = run()
-
-    print(json.dumps(report, indent=2, default=str))
-
-    if report["status"] == "FAIL":
-        raise SystemExit(1)
+    run_health_check_cli(run)
 
 
 if __name__ == "__main__":
