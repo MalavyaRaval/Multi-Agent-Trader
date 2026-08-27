@@ -283,6 +283,26 @@ function fetchDiagnostics() {
                             </span>
                         </div>
 
+                        ${svc.purpose ? `
+                        <div style="font-size:0.82rem; color:var(--text-main); margin-bottom:2px;">
+                            <strong>Purpose:</strong> ${escapeHtml(svc.purpose)}
+                        </div>` : ""}
+
+                        ${svc.feed ? `
+                        <div style="font-size:0.82rem; color:var(--text-main); margin-bottom:2px;">
+                            <strong>Feed:</strong> ${escapeHtml(svc.feed)}
+                        </div>` : ""}
+
+                        ${typeof svc.market_hours_open === "boolean" ? `
+                        <div style="font-size:0.82rem; color:var(--text-main); margin-bottom:2px;">
+                            <strong>Market Hours:</strong> ${svc.market_hours_open ? "Open (regular session)" : "Closed"}
+                        </div>` : ""}
+
+                        ${svc.rate_limit ? `
+                        <div style="font-size:0.82rem; color:var(--text-main); margin-bottom:2px;">
+                            <strong>Requests (60s):</strong> ${svc.rate_limit.requests_last_60s} / ${svc.rate_limit.limit_per_minute}
+                        </div>` : ""}
+
                         <div style="
                             font-size:0.82rem;
                             color:var(--text-muted);
@@ -568,6 +588,8 @@ function startAutonomous() {
                 symbolList.join(", ");
 
             status.style.color = "#34d399";
+
+            fetchAutonomousStatus();
         })
         .catch(error => {
             console.error(
@@ -598,12 +620,137 @@ function stopAutonomous() {
 
             status.style.color =
                 "var(--text-muted)";
+
+            fetchAutonomousStatus();
         })
         .catch(error => {
             console.error(
                 "Autonomous stop error:",
                 error
             );
+        });
+}
+
+
+// PHASES_PLAN.md Phase 9 -- Autonomous Loop Monitor
+const AUTO_STATUS_ICON = {
+    SUCCESS: "🟢",
+    WARNING: "🟡",
+    ERROR: "🔴"
+};
+
+function fmtClockTime(isoString) {
+    if (!isoString) {
+        return "-";
+    }
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+        return "-";
+    }
+    return date.toLocaleTimeString();
+}
+
+function fetchAutonomousStatus() {
+    fetch("/api/autonomous/status")
+        .then(response => response.json())
+        .then(data => {
+            const monitor = document.getElementById("autonomous-monitor");
+            if (!monitor || !data) {
+                return;
+            }
+
+            monitor.style.display = data.status === "running" || (data.runs_today || 0) > 0
+                ? "block"
+                : "none";
+
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.textContent = text;
+                }
+            };
+
+            setText("auto-interval", data.interval_seconds ? `${data.interval_seconds}s` : "-");
+            setText("auto-symbols", (data.symbols || []).join(", ") || "-");
+            setText("auto-last-run", fmtClockTime(data.last_run_at));
+            setText("auto-next-run", data.status === "running" ? fmtClockTime(data.next_run_at) : "-");
+            setText("auto-runs-today", data.runs_today ?? 0);
+            setText(
+                "auto-run-outcomes",
+                `${data.successful ?? 0} / ${data.warnings ?? 0} / ${data.errors ?? 0}`
+            );
+            setText(
+                "auto-action-counts",
+                `${data.buy_count ?? 0} / ${data.sell_count ?? 0} / ${data.hold_count ?? 0}`
+            );
+
+            const recentContainer = document.getElementById("auto-recent-runs");
+            if (recentContainer) {
+                const runs = (data.recent_runs || []).slice(0, 8);
+                recentContainer.innerHTML = runs.map(run => {
+                    const icon = AUTO_STATUS_ICON[run.status] || "⚪";
+                    const warningsText = (run.warnings || []).length
+                        ? ` — ${escapeHtml(run.warnings.join("; "))}`
+                        : "";
+                    return `
+                        <div style="padding:3px 0; border-top:1px solid var(--border-color);">
+                            ${icon} ${escapeHtml(run.symbol)} ${escapeHtml((run.action || "hold").toUpperCase())}
+                            (${fmtNum(run.duration_seconds, 1)}s)${warningsText}
+                        </div>
+                    `;
+                }).join("");
+            }
+        })
+        .catch(() => { })
+        .finally(() => {
+            setTimeout(fetchAutonomousStatus, 5000);
+        });
+}
+
+
+// PHASES_PLAN.md Phase 12 -- Error Tracking
+const ERROR_ICON = {
+    RateLimitError: "🔴",
+    AuthenticationError: "🔴",
+    ServerError: "🔴",
+    HTTPError: "🟡",
+    TimeoutError: "🟡",
+    NotConfiguredError: "🟡",
+    UnknownError: "🟡"
+};
+
+function fetchErrors() {
+    fetch("/api/errors?limit=20")
+        .then(response => response.json())
+        .then(data => {
+            const panel = document.getElementById("errors-panel");
+            if (!panel) {
+                return;
+            }
+
+            const errors = data.errors || [];
+            if (!errors.length) {
+                panel.innerHTML = '<div style="color:var(--text-muted); font-style:italic;">No errors recorded yet.</div>';
+                return;
+            }
+
+            panel.innerHTML = errors.map(err => {
+                const icon = ERROR_ICON[err.error_type] || "🟡";
+                const time = fmtClockTime(err.timestamp);
+                const codeText = err.status_code ? ` ${err.status_code}` : "";
+                return `
+                    <div style="padding:4px 0; border-top:1px solid var(--border-color);">
+                        <div>${icon} ${time} — ${escapeHtml(err.provider || err.agent || err.stage)}${codeText}</div>
+                        <div style="color:var(--text-muted); font-size:0.72rem;">
+                            ${escapeHtml(err.symbol || "")} · ${escapeHtml(err.message || "")}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        })
+        .catch(() => { })
+        .finally(() => {
+            setTimeout(fetchErrors, 8000);
         });
 }
 
@@ -1762,6 +1909,20 @@ function filterChatBySession() {
         select?.value || "";
 
     renderGroupChatFeed(true);
+
+    // PHASES_PLAN.md Phase 10 -- show the "Full Report" link once a specific
+    // run is selected (the run_id and session_id are the same value).
+    const reportBtn = document.getElementById("view-run-report-btn");
+    if (reportBtn) {
+        reportBtn.style.display = currentSessionFilter ? "inline-block" : "none";
+    }
+}
+
+
+function openSelectedRunReport() {
+    if (currentSessionFilter) {
+        window.open(`/run/${encodeURIComponent(currentSessionFilter)}`, "_blank");
+    }
 }
 
 
@@ -4556,6 +4717,8 @@ document.addEventListener(
         loadHistory();
         pollMessages();
         initializePortfolioVisualization();
+        fetchAutonomousStatus();
+        fetchErrors();
     }
 );
 

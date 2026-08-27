@@ -640,7 +640,12 @@ DATA QUALITY
 
 ---
 
-# 12. Phase 5 — Data Quality System
+# 12. Phase 5 — Data Quality System [COMPLETED]
+
+Status: Completed on 2026-08-26. Implemented in `observability/data_quality.py`
+(`validate_market_data`), wired into `MarketAgent.snapshot()` as
+`MarketSnapshot.quality_report`, and surfaced through the orchestrator's group
+chat + event log. Covered by `tests/test_data_quality.py` (13 tests).
 
 An API returning HTTP 200 does NOT necessarily mean the data is usable.
 
@@ -676,7 +681,14 @@ Result:
 
 ---
 
-# 13. Phase 6 — Explain Every HOLD
+# 13. Phase 6 — Explain Every HOLD [COMPLETED]
+
+Status: Completed on 2026-08-26. `ExecutionAgent.analyze()` now returns
+`decision_explanation` (action, confidence, combined score, both thresholds,
+itemized agent reasons, and per-strategy reasons) for every action, including
+HOLD -- not just BUY/SELL. The orchestrator's "FINAL DECISION" chat message
+shows the score against both thresholds explicitly. Covered by
+`tests/test_execution_transparency.py`.
 
 This is one of the highest-priority changes.
 
@@ -741,7 +753,17 @@ Do this for all five strategies.
 
 ---
 
-# 15. Phase 7 — Score Calculation Transparency
+# 15. Phase 7 — Score Calculation Transparency [COMPLETED]
+
+Status: Completed on 2026-08-26. `ExecutionAgent.analyze()` returns
+`score_breakdown` with every term that feeds the final decision: technical /
+fundamental / news sub-scores, the risk factor and level, agent score
+pre- and post-risk, both normalized scores, both weights (0.60 / 0.40) and
+contributions, the combined score, and the named BUY/SELL thresholds
+(previously bare `0.25` / `-0.25` literals, now `BUY_THRESHOLD` /
+`SELL_THRESHOLD` module constants). Per-strategy contributions were already
+exposed via `ensemble.breakdown`. Verified numerically consistent with the
+actual decision in `tests/test_execution_transparency.py`.
 
 The current execution formula should be displayed.
 
@@ -804,7 +826,17 @@ This will probably reveal why you're seeing so many HOLD decisions.
 
 ---
 
-# 16. Phase 8 — Find Out Why HOLD Happens
+# 16. Phase 8 — Find Out Why HOLD Happens [COMPLETED]
+
+Status: Completed on 2026-08-27. `ExecutionAgent._classify_hold_reason()`
+buckets every HOLD (insufficient_data, risk_gate, existing_position,
+mixed_strategy_signals, no_technical_catalyst, below_confidence_threshold) at
+decision time and persists it via `TradeHistory.record_analysis()`.
+`TradeHistory.get_decision_stats(limit)` aggregates BUY/SELL/HOLD percentages
+and hold-reason counts over the last N analyses, exposed at
+`GET /api/stats/decisions`. Verified live against real history (35% buy / 65%
+hold over the last 20 real analyses). Covered by `tests/test_decision_stats.py`
+(15 tests).
 
 Add statistics.
 
@@ -838,7 +870,18 @@ It may simply be that your thresholds make BUY/SELL mathematically rare.
 
 ---
 
-# 17. Phase 9 — Autonomous Loop Monitor
+# 17. Phase 9 — Autonomous Loop Monitor [COMPLETED]
+
+Status: Completed on 2026-08-27. `Orchestrator` now tracks autonomous-loop
+state (status, interval, symbols, last/next run, runs today, successful /
+warning / error counts, BUY/SELL/HOLD counts, last 50 runs with per-stage
+PASS/WARNING/ERROR and duration) via `_record_autonomous_run()`, exposed at
+`GET /api/autonomous/status`. Added a live-polling monitor panel to the
+"Autonomous Engine" dashboard card. Verified in a real headless-browser run
+against the live app (Playwright): started the loop, watched the panel
+populate from a real multi-agent analysis (BUY AAPL, 6.6s), stopped it, and
+confirmed the panel reflected the stopped state -- no console errors.
+Covered by `tests/test_autonomous_monitor.py` (7 tests).
 
 The 180-second loop should have its own dashboard.
 
@@ -904,7 +947,20 @@ Finnhub returned no new articles.
 
 ---
 
-# 18. Phase 10 — Run Detail Page
+# 18. Phase 10 — Run Detail Page [COMPLETED]
+
+Status: Completed on 2026-08-27, with one honest caveat: run detail is backed
+by a bounded (200-entry) in-memory cache on the Orchestrator, keyed by
+run_id -- available for any run from this server process's uptime, not yet
+durable across restarts (that's Phase 11). `Orchestrator.get_run_detail()`
+assembles all 14 sections; `GET /run/<run_id>` renders them as a standalone
+report page (`templates/run_detail.html`), `GET /api/run/<run_id>` returns
+the same as JSON, `GET /api/runs` lists cached runs. Wired a "Full Report"
+link into the existing session selector in the Group Chat tab. Verified live
+in a real headless-browser session (Playwright): ran a real analysis, opened
+its report, confirmed all 14 sections render with real data plus a clean
+"not found" page for an unknown run_id -- no console errors. Covered by
+`tests/test_run_detail.py` (12 tests).
 
 Clicking any run should open a complete report.
 
@@ -933,7 +989,24 @@ Sections:
 
 ---
 
-# 19. Phase 11 — Persistent Run History
+# 19. Phase 11 — Persistent Run History [COMPLETED]
+
+Status: Completed on 2026-08-27, using the plan's preferred SQLite option.
+`data/run_store.py::RunStore` persists every run to `data/trading_system.db`
+across 7 tables (`runs`, `events`, `agent_results`, `strategy_votes`,
+`decisions`, `orders`, `errors` -- `api_calls` folded into `events` as a
+queryable subset rather than a separate table). `Orchestrator` now calls
+`run_store.save_run()` at the end of every `analyze_symbol()`, and
+`get_run_detail()`/`list_recent_runs()` read from the store instead of
+Phase 10's original in-memory cache. `decisions` and `strategy_votes` use
+real columns (not just JSON blobs) so later phases (25: Agent Performance,
+26: Decision Calibration) can run real SQL aggregates. Verified with a real
+cross-process test: ran a live analysis, killed the server, started a fresh
+process, and confirmed `GET /api/run/<run_id>` still returned the complete
+14-section record -- the exact durability gap this phase exists to close.
+Covered by `tests/test_run_store.py` (11 tests); `tests/test_run_detail.py`
+updated to isolate each test's Orchestrator behind its own temp-file store.
+The db file is gitignored (regenerable runtime state, like `__pycache__`).
 
 Do not only keep the communication log in memory.
 
@@ -970,7 +1043,29 @@ SQLite would be a major improvement over large JSON files once the project grows
 
 ---
 
-# 20. Phase 12 — Error Tracking
+# 20. Phase 12 — Error Tracking [COMPLETED]
+
+Status: Completed on 2026-08-27, with one honest gap noted below. The
+`errors` table (Phase 11) was enriched with `agent`, `provider`,
+`error_type`, `status_code`, `message`, `timestamp`, `retry_count`,
+`recovered` -- matching the plan's JSON shape. `data/run_store.py::_classify_error()`
+best-effort classifies each stage's raw error text into an agent name,
+upstream provider, error type (RateLimitError/AuthenticationError/TimeoutError/
+ServerError/HTTPError/NotConfiguredError/UnknownError), and HTTP status code
+via regex/keyword matching -- covered by dedicated classifier tests.
+`RunStore.list_recent_errors()` / `GET /api/errors` gives a cross-run global
+feed; added an "Errors" dashboard card with color-coded entries. A safe
+`ALTER TABLE` migration upgrades a pre-Phase-12 `errors` table in place.
+Verified live: real analysis run, a synthetic 429 injected directly into the
+live DB while the server was running, confirmed via the API, the dashboard
+panel, and the run detail page. Covered by 8 new tests in
+`tests/test_run_store.py` (19 total in that file).
+
+**Gap:** `retry_count`/`recovered` are schema columns but always NULL --
+populating them needs each retry attempt to report back to the error
+tracker, which `data/retry.py`'s decorator doesn't currently do. Deliberately
+not wired in this pass to avoid touching retry behavior on live trading data
+paths without being asked; noted here rather than silently claimed done.
 
 Create a centralized error system.
 
@@ -1003,7 +1098,15 @@ ERRORS
 
 ---
 
-# 21. Phase 13 — Data Source Registry
+# 21. Phase 13 — Data Source Registry [COMPLETED]
+
+Status: Completed on 2026-08-27. Most of this already existed via
+`/api/diagnostics` and the diagnostics modal (Phases 0-4); added the missing
+`purpose` field to every service and `feed: "IEX"` to Alpaca, and surfaced
+both in the modal. Verified live in a real browser: opening the diagnostics
+modal shows each of Alpaca/Finnhub/Gemini with name, 🟢 CONNECTED status,
+Purpose, and (for Alpaca) Feed -- matching the plan's mockup closely. Covered
+by `tests/test_app_endpoints.py::test_diagnostics_is_a_data_source_registry`.
 
 Create one place describing every external source.
 
@@ -1039,7 +1142,89 @@ This lets you immediately identify missing services.
 
 ---
 
-# 22. Phase 14 — Market Data Improvements
+# 22. Phase 14 — Market Data Improvements [COMPLETED]
+
+Status: Completed on 2026-08-27, with two items deliberately scoped down --
+see the honest notes below.
+
+* **Explicit IEX configuration** -- `config.ALPACA_DATA_FEED` (env-driven,
+  defaults to `"iex"`). `agents/market_agent.py` resolves it once into
+  `MARKET_DATA_FEED` and every Alpaca market-data request (`latest_quote`,
+  `latest_trade`, `historical_bars`) now passes it explicitly instead of a
+  hardcoded literal.
+* **Feed reporting** -- `MarketSnapshot.feed` is populated on every real
+  snapshot; `/api/diagnostics` reports `services.alpaca.feed`, and the
+  diagnostics modal shows a "Feed" line. Already existed from Phase 13; this
+  phase made it driven by the real configured feed instead of a hardcoded
+  `"IEX"` string.
+* **Data freshness / bar-count validation / timestamp validation** -- already
+  implemented in Phase 5's `observability/data_quality.py`
+  (`validate_market_data`); no new work needed here.
+* **Pagination** -- verified by reading `alpaca-py`'s
+  `RESTClient._get_marketdata()` (`.venv/Lib/site-packages/alpaca/common/rest.py`):
+  it already loops on `next_page_token` internally, so a single
+  `client.get_stock_bars(...)` call already retrieves the full range. No code
+  change was needed or made.
+* **Missing-bar detection** -- added as `gap_analysis` in
+  `validate_market_data()`'s report (`observability/data_quality.py`):
+  reports `max_gap_days` and `large_gap_detected` (> 5 calendar days) for
+  daily-or-slower bars, computed from the max delta between consecutive
+  timestamps. Deliberately informational only -- it is not part of
+  `checks`/`failed_checks` and never flips the PASS/FAIL `status`, because
+  flagging it as a hard failure would need a real market-holiday calendar to
+  avoid false positives on ordinary long weekends, which this system does not
+  have. Skipped entirely for intraday bars (median gap < 20h) where within-day
+  gaps are normal and this heuristic doesn't apply.
+* **Request timing** -- `MarketAgent.snapshot()` now times each of the three
+  underlying calls (`bars`, `quote`, `trade`) with `time.perf_counter()` and
+  returns them as `MarketSnapshot.request_timings_ms`.
+* **Rate-limit tracking** -- `agents/market_agent.py` tracks real (non-cached)
+  Alpaca requests made by this process in a trailing 60s window
+  (`get_rate_limit_status()`), compared against
+  `config.ALPACA_DATA_RATE_LIMIT_PER_MIN` (default 200, Alpaca's documented
+  free-plan limit). Surfaced via `/api/diagnostics` and the diagnostics modal
+  ("Requests (60s): N / 200"). Honest limitation: `alpaca-py` parses the
+  response body and discards HTTP headers, so there is no way to read a true
+  server-side "requests remaining" count -- this is a local estimate of this
+  process's own usage, not an authoritative quota, and the UI/API label it as
+  such.
+* **Response caching** -- already existed (`data/cache.py`'s `Cache`, used by
+  `historical_bars()` with a 60s TTL); not new to this phase.
+* **Stale-cache detection** -- deliberately deferred. The existing cache
+  already has a hard 60s TTL (so a cache hit can never be more than 60s
+  stale), and Phase 5's freshness check independently validates bar
+  timestamps against wall-clock time. Building a separate cache-staleness
+  signal on top of that would add a second, redundant notion of "stale" for
+  no clear benefit; if a real need for it shows up later, it should be
+  designed against a concrete symptom rather than added speculatively here.
+* **Market-hours awareness** -- added `is_market_hours_now()`: a simple
+  NYSE/Nasdaq regular-session check (America/New_York, Mon-Fri, 9:30-16:00),
+  exposed as `MarketSnapshot.market_hours_open` and in `/api/diagnostics`.
+  Honest limitation: it does not account for market holidays or early
+  closes, so a `False` reading near a holiday may be a holiday, not a data
+  problem -- documented in the code and used only as an informational signal
+  (e.g. distinguishing "quote is 3h old and the market is open" from
+  "...and it's closed"), never to gate a trading decision.
+
+Verified: 11 new tests in `tests/test_market_data_improvements.py` (feed
+reporting, request timing, rate-limit accounting including that cache hits
+don't count against it, and market-hours edge cases), 4 new tests in
+`tests/test_data_quality.py` for `gap_analysis`, plus
+`test_diagnostics_is_a_data_source_registry` extended to check the new
+diagnostics fields. Full suite: 133+ passed. Live-verified in a real browser
+via Playwright: the diagnostics modal renders "Market Hours: Closed" and
+"Requests (60s): 0 / 200" for Alpaca; triggering a real `/api/analyze` call
+against Alpaca then re-fetching diagnostics showed the counter increase from
+0 to 6 (multiple agents each hold their own `MarketAgent`, and the tracker is
+correctly process-wide, not per-instance).
+
+Also fixed, while cleaning up test byproducts uncovered during this phase's
+live verification: `tests/test_observability_phase_2.py`'s
+`test_api_call_inspector_returns_trace_events` was writing directly into the
+real `data/observability/` directory (via the orchestrator's real
+`run_tracker`) on every test run, permanently dirtying a tracked fixture
+file. It now uses an isolated `RunTracker(base_dir=tmp_path)`, matching the
+pattern already used by its neighboring test.
 
 Prioritize this before adding more agents.
 

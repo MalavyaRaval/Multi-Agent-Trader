@@ -36,6 +36,27 @@ AUTO_EXECUTE_CONFIDENCE = float(os.getenv("AUTO_EXECUTE_CONFIDENCE", "0.75"))
 AUTO_TRADE_NOTIONAL = float(os.getenv("AUTO_TRADE_NOTIONAL", "500"))
 ALLOW_DEGRADED_TRADING = os.getenv("ALLOW_DEGRADED_TRADING", "false").strip().lower() in {"1", "true", "yes", "on"}
 
+# Combined-score gates for BUY/SELL vs HOLD (combined_score lives in roughly [-1, 1]
+# after the 60/40 agent/strategy weighting below). Named here -- rather than left as
+# bare 0.25 / -0.25 literals at each decision branch -- so they can be surfaced
+# verbatim in the decision explanation (PHASES_PLAN.md Phase 6/7).
+BUY_THRESHOLD = 0.25
+SELL_THRESHOLD = -0.25
+AGENT_WEIGHT = 0.60
+STRATEGY_WEIGHT = 0.40
+
+# PHASES_PLAN.md Phase 8 -- Find Out Why HOLD Happens. Canonical HOLD-reason
+# buckets (stable machine-readable codes -> display labels), aggregated by
+# memory.trade_history.TradeHistory.get_decision_stats().
+HOLD_REASON_LABELS = {
+    "insufficient_data": "Insufficient data",
+    "risk_gate": "Risk gate",
+    "existing_position": "Existing position",
+    "mixed_strategy_signals": "Mixed strategy signals",
+    "no_technical_catalyst": "No technical catalyst",
+    "below_confidence_threshold": "Below confidence threshold",
+}
+
 
 class ExecutionAgent:
     name = "execution_agent"
@@ -62,6 +83,7 @@ class ExecutionAgent:
             "action": "hold",
             "confidence": 0.0,
             "decision_status": "DATA_UNAVAILABLE",
+            "hold_reason": "insufficient_data",
             "reason": "",
             "strategy_votes": [],
             "ensemble": {},
@@ -142,7 +164,9 @@ class ExecutionAgent:
         risk = ctx.get("risk", {})
         port = ctx.get("portfolio", {})
 
-        agent_score = 0.0
+        technical_score = 0.0
+        fundamental_score = 0.0
+        news_score = 0.0
         reasons = []
         risk_status = str(risk.get("status", "ok")).lower()
         risk_level = str(risk.get("risk_level", "medium")).lower()
@@ -152,6 +176,7 @@ class ExecutionAgent:
             result["status"] = "risk_error"
             result["action"] = "hold"
             result["decision_status"] = "DATA_UNAVAILABLE"
+            result["hold_reason"] = "risk_gate"
             result["confidence"] = 0.0
             result["reason"] = "Risk agent failed: " + str(risk.get("error", "unknown risk error"))
             result["data_quality"]["risk"] = False
@@ -180,33 +205,33 @@ class ExecutionAgent:
 
         if rsi is not None:
             if rsi < 30:
-                agent_score += 1.5
+                technical_score += 1.5
                 reasons.append(f"RSI oversold ({rsi:.1f})")
             elif rsi > 70:
-                agent_score -= 1.5
+                technical_score -= 1.5
                 reasons.append(f"RSI overbought ({rsi:.1f})")
 
         if macd is not None and macd_signal is not None:
             if macd > macd_signal:
-                agent_score += 1.0
+                technical_score += 1.0
                 reasons.append("MACD bullish crossover")
             else:
-                agent_score -= 1.0
+                technical_score -= 1.0
                 reasons.append("MACD bearish crossover")
 
         if ema_20 is not None and ema_50 is not None:
             if ema_20 > ema_50:
-                agent_score += 0.5
+                technical_score += 0.5
                 reasons.append("Price above EMA50 (uptrend)")
             else:
-                agent_score -= 0.5
+                technical_score -= 0.5
                 reasons.append("Price below EMA50 (downtrend)")
 
         if "strong_buy" in volume_trend:
-            agent_score += 0.5
+            technical_score += 0.5
             reasons.append("Volume confirms upside")
         elif "strong_sell" in volume_trend:
-            agent_score -= 0.5
+            technical_score -= 0.5
             reasons.append("Volume confirms downside")
 
         fund_score = fund.get("score") if isinstance(fund, dict) else None
@@ -215,7 +240,7 @@ class ExecutionAgent:
             result["data_quality"]["fundamental"] = False
             result["data_quality_score"] = min(result["data_quality_score"], 60)
         else:
-            agent_score += float(fund_score) * 0.5
+            fundamental_score += float(fund_score) * 0.5
             if fund_score > 0:
                 reasons.append("Fundamentals look good")
             elif fund_score < 0:
@@ -223,49 +248,50 @@ class ExecutionAgent:
 
         sentiment = news.get("sentiment", "neutral") if isinstance(news, dict) else "neutral"
         if sentiment == "positive":
-            agent_score += 0.5
+            news_score += 0.5
             reasons.append("Positive news sentiment")
         elif sentiment == "negative":
-            agent_score -= 0.5
+            news_score -= 0.5
             reasons.append("Negative news sentiment")
 
-        agent_score *= risk_factor
+        agent_score_pre_risk = technical_score + fundamental_score + news_score
+        agent_score = agent_score_pre_risk * risk_factor
 
         # Normalized to [-1, 1] for a mathematically clear 60/40 weighting.
         # agent_score is built from additive heuristics; strategy_score already comes from the ensemble in [-1, 1].
         agent_norm = max(-1.0, min(1.0, agent_score / 4.0))
         strat_norm = max(-1.0, min(1.0, strat_score))
-        agent_contribution = agent_norm * 0.60
-        strategy_contribution = strat_norm * 0.40
+        agent_contribution = agent_norm * AGENT_WEIGHT
+        strategy_contribution = strat_norm * STRATEGY_WEIGHT
         combined_score = agent_contribution + strategy_contribution
 
         position = port.get("position") if isinstance(port, dict) else None
         if position and position.get("qty"):
             qty = float(position.get("qty", 0))
-            if qty > 0 and combined_score < -0.25:
+            if qty > 0 and combined_score < SELL_THRESHOLD:
                 result["action"] = "sell"
                 result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
                 result["decision_status"] = "NORMAL"
-            elif qty == 0 and combined_score > 0.25:
+            elif qty == 0 and combined_score > BUY_THRESHOLD:
                 result["action"] = "buy"
                 result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
                 result["decision_status"] = "NORMAL"
             else:
                 result["action"] = "hold"
-                result["confidence"] = 0.13 if abs(combined_score) < 0.25 else min(abs(combined_score) / 2.0, 0.30)
+                result["confidence"] = 0.13 if abs(combined_score) < BUY_THRESHOLD else min(abs(combined_score) / 2.0, 0.30)
                 result["decision_status"] = "INSUFFICIENT_EDGE"
         else:
-            if combined_score > 0.25:
+            if combined_score > BUY_THRESHOLD:
                 result["action"] = "buy"
                 result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
                 result["decision_status"] = "NORMAL"
-            elif combined_score < -0.25:
+            elif combined_score < SELL_THRESHOLD:
                 result["action"] = "sell"
                 result["confidence"] = min(abs(combined_score) / 1.5, 1.0)
                 result["decision_status"] = "NORMAL"
             else:
                 result["action"] = "hold"
-                result["confidence"] = 0.13 if abs(combined_score) < 0.25 else min(abs(combined_score) / 2.0, 0.30)
+                result["confidence"] = 0.13 if abs(combined_score) < BUY_THRESHOLD else min(abs(combined_score) / 2.0, 0.30)
                 result["decision_status"] = "INSUFFICIENT_EDGE"
 
         result["reason"] = "; ".join(reasons) if reasons else "No strong signals"
@@ -276,6 +302,60 @@ class ExecutionAgent:
         result["normalized_strategy_score"] = round(strat_norm, 4)
         result["agent_contribution"] = round(agent_contribution, 4)
         result["strategy_contribution"] = round(strategy_contribution, 4)
+
+        # PHASES_PLAN.md Phase 7 -- Score Calculation Transparency: every term that
+        # fed into the final combined_score, laid out explicitly instead of only
+        # exposing the already-summed agent_score/strategy_score.
+        result["score_breakdown"] = {
+            "technical_score": round(technical_score, 4),
+            "fundamental_score": round(fundamental_score, 4),
+            "news_score": round(news_score, 4),
+            "risk_level": risk_level,
+            "risk_factor": round(risk_factor, 4),
+            "agent_score_pre_risk": round(agent_score_pre_risk, 4),
+            "agent_score": round(agent_score, 4),
+            "agent_score_normalized": round(agent_norm, 4),
+            "agent_weight": AGENT_WEIGHT,
+            "agent_contribution": round(agent_contribution, 4),
+            "strategy_score": round(strat_score, 4),
+            "strategy_score_normalized": round(strat_norm, 4),
+            "strategy_weight": STRATEGY_WEIGHT,
+            "strategy_contribution": round(strategy_contribution, 4),
+            "combined_score": round(combined_score, 4),
+            "buy_threshold": BUY_THRESHOLD,
+            "sell_threshold": SELL_THRESHOLD,
+        }
+
+        # PHASES_PLAN.md Phase 6 -- Explain Every HOLD (and every BUY/SELL): a
+        # structured "why", not just the final action, so a HOLD is never shown
+        # by itself.
+        result["decision_explanation"] = {
+            "action": result["action"],
+            "confidence": round(result["confidence"], 4),
+            "combined_score": round(combined_score, 4),
+            "buy_threshold": BUY_THRESHOLD,
+            "sell_threshold": SELL_THRESHOLD,
+            "agent_reasons": list(reasons),
+            "strategy_reasons": [
+                {
+                    "strategy": vote.get("strategy") or vote.get("name"),
+                    "decision": vote.get("decision"),
+                    "confidence": vote.get("confidence"),
+                    "reason": vote.get("reason"),
+                }
+                for vote in strategy_results
+            ],
+        }
+
+        result["hold_reason"] = self._classify_hold_reason(
+            action=result["action"],
+            decision_status=result["decision_status"],
+            status=result["status"],
+            risk_level=risk_level,
+            portfolio=port,
+            strategy_results=strategy_results,
+            agent_reasons=reasons,
+        )
 
         # Generate comprehensive AI detailed reasoning breakdown
         try:
@@ -299,11 +379,56 @@ class ExecutionAgent:
                 action=result["action"],
                 confidence=result["confidence"],
                 reason=result["reason"],
+                decision_status=result["decision_status"],
+                hold_reason=result["hold_reason"],
                 analyses={"strategies": strategy_results, "agent_score": agent_score, "ensemble": ensemble_result},
             )
         except Exception:
             pass
         return result
+
+    @staticmethod
+    def _classify_hold_reason(
+        action: str,
+        decision_status: str,
+        status: str,
+        risk_level: str,
+        portfolio: Any,
+        strategy_results: list,
+        agent_reasons: list,
+    ) -> Optional[str]:
+        """
+        PHASES_PLAN.md Phase 8 -- bucket a HOLD decision into one of
+        HOLD_REASON_LABELS using only fields already computed this call, so
+        "why did we HOLD" statistics can be aggregated later without
+        re-deriving anything from stored history. Returns None for buy/sell.
+        """
+        if action != "hold":
+            return None
+
+        if status == "risk_error":
+            return "risk_gate"
+
+        if decision_status == "DATA_UNAVAILABLE" or status == "insufficient_data":
+            return "insufficient_data"
+
+        if risk_level in {"high", "unknown", "none"}:
+            return "risk_gate"
+
+        if decision_status == "INSUFFICIENT_EDGE":
+            position = portfolio.get("position") if isinstance(portfolio, dict) else None
+            has_position = bool(position and float(position.get("qty", 0) or 0) != 0)
+            if has_position:
+                return "existing_position"
+
+            buy_votes = sum(1 for v in strategy_results if v.get("decision") == "buy")
+            sell_votes = sum(1 for v in strategy_results if v.get("decision") == "sell")
+            if buy_votes >= 1 and sell_votes >= 1:
+                return "mixed_strategy_signals"
+            if not agent_reasons and buy_votes == 0 and sell_votes == 0:
+                return "no_technical_catalyst"
+
+        return "below_confidence_threshold"
 
     def compute_position_size(
         self,

@@ -7,6 +7,8 @@ import pandas as pd
 from flask import Flask, jsonify, render_template, request, send_from_directory
 
 from agents.technical_agent import TechnicalAgent
+from agents.execution_agent import HOLD_REASON_LABELS
+from agents.market_agent import MARKET_DATA_FEED, get_rate_limit_status, is_market_hours_now
 from config import FINNHUB_API_KEY, GEMINI_API_KEY
 from data.alpaca_client import has_alpaca_credentials
 from llm.gemini_client import MODEL_NAME as GEMINI_MODEL_NAME
@@ -237,32 +239,40 @@ def api_chart_data():
 
 @app.route("/api/diagnostics", methods=["GET"])
 def api_diagnostics():
-    """Return health & connectivity status for all APIs."""
+    """PHASES_PLAN.md Phase 13 -- Data Source Registry: one place describing
+    every external source (purpose, feed, connection status) so a missing
+    service is immediately visible instead of discovered mid-analysis."""
     alpaca_configured = has_alpaca_credentials()
     finnhub_key = bool(FINNHUB_API_KEY)
     gemini_key = bool(GEMINI_API_KEY)
 
-    alpaca_status = "ok" if alpaca_configured else "missing_keys"
-    finnhub_status = "ok" if finnhub_key else "missing_key"
-    gemini_status = "ok" if gemini_key else "missing_key"
+    alpaca_status = "connected" if alpaca_configured else "missing_keys"
+    finnhub_status = "connected" if finnhub_key else "missing_key"
+    gemini_status = "connected" if gemini_key else "missing_key"
 
     return jsonify({
         "status": "ok",
         "services": {
             "alpaca": {
                 "name": "Alpaca Market & Trading API",
+                "purpose": "Market prices / bars / quotes / trades / account / orders",
+                "feed": MARKET_DATA_FEED.value.upper(),
                 "status": alpaca_status,
                 "mode": "Paper Trading (Zero Risk)",
                 "keys_configured": alpaca_configured,
+                "market_hours_open": is_market_hours_now(),
+                "rate_limit": get_rate_limit_status(),
             },
             "finnhub": {
                 "name": "Finnhub Fundamentals & News API",
+                "purpose": "Fundamentals / company profile / news",
                 "status": finnhub_status,
                 "keys_configured": finnhub_key,
                 "note": "Optional. When missing, fundamental & news agents degrade gracefully to neutral.",
             },
             "gemini": {
                 "name": "Google Gemini LLM Engine",
+                "purpose": "Natural-language reasoning / reflections",
                 "status": gemini_status,
                 "keys_configured": gemini_key,
                 "model": GEMINI_MODEL_NAME,
@@ -290,6 +300,36 @@ def api_sessions():
     """Get list of all analysis sessions recorded."""
     sessions = orchestrator.bus.get_sessions()
     return jsonify({"sessions": sessions})
+
+
+@app.route("/api/runs", methods=["GET"])
+def api_runs():
+    """PHASES_PLAN.md Phase 10 -- lightweight index of recent runs (for a run list)."""
+    limit = request.args.get("limit", type=int, default=50)
+    return jsonify({"runs": orchestrator.list_recent_runs(limit=limit)})
+
+
+@app.route("/api/run/<run_id>", methods=["GET"])
+def api_run_detail(run_id):
+    """PHASES_PLAN.md Phase 10 -- full 14-section detail for one run."""
+    detail = orchestrator.get_run_detail(run_id)
+    if detail is None:
+        return jsonify({"status": "error", "error": f"Run {run_id} not found."}), 404
+    return jsonify(detail)
+
+
+@app.route("/api/errors", methods=["GET"])
+def api_errors():
+    """PHASES_PLAN.md Phase 12 -- Error Tracking: recent errors across all runs."""
+    limit = request.args.get("limit", type=int, default=50)
+    return jsonify({"errors": orchestrator.list_recent_errors(limit=limit)})
+
+
+@app.route("/run/<run_id>")
+def run_detail_page(run_id):
+    """PHASES_PLAN.md Phase 10 -- Run Detail Page."""
+    detail = orchestrator.get_run_detail(run_id)
+    return render_template("run_detail.html", run_id=run_id, detail=detail)
 
 
 @app.route("/api/api_calls", methods=["GET"])
@@ -349,6 +389,12 @@ def api_autonomous_stop():
     return jsonify({"status": "stopped"})
 
 
+@app.route("/api/autonomous/status", methods=["GET"])
+def api_autonomous_status():
+    """PHASES_PLAN.md Phase 9 -- Autonomous Loop Monitor."""
+    return jsonify(orchestrator.get_autonomous_status())
+
+
 @app.route("/api/execute", methods=["POST"])
 def api_execute():
     """Execute a trade directly via the execution agent."""
@@ -377,6 +423,26 @@ def api_history():
 def api_history_stats():
     """Get trade history statistics."""
     return jsonify(trade_history.get_stats())
+
+
+@app.route("/api/stats/decisions", methods=["GET"])
+def api_decision_stats():
+    """PHASES_PLAN.md Phase 8 -- Find Out Why HOLD Happens.
+
+    BUY/SELL/HOLD breakdown over the last N analyses, and a count per HOLD
+    reason bucket, so mostly-HOLD behavior can be explained (mathematically
+    rare BUY/SELL thresholds vs. genuinely bad signals) instead of guessed at.
+    """
+    limit = request.args.get("limit", type=int, default=100)
+    try:
+        stats = trade_history.get_decision_stats(limit=limit)
+        stats["hold_reason_labels"] = {
+            code: HOLD_REASON_LABELS.get(code, code)
+            for code in stats["hold_reason_counts"]
+        }
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------

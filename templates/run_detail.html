@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Run {{ run_id }} — Run Detail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <style>
+        body {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .rd-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+        .rd-section h2 {
+            margin: 0 0 10px 0;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+        .rd-kv {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .rd-kv span:first-child {
+            color: var(--text-muted);
+        }
+        .rd-empty {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+        pre.rd-json {
+            background: var(--bg-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.78rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: var(--text-muted);
+        }
+        .rd-back {
+            display: inline-block;
+            margin-bottom: 16px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .rd-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .rd-badge.buy { background: var(--badge-buy-bg); color: var(--badge-buy-text); border: 1px solid var(--badge-buy-border); }
+        .rd-badge.sell { background: var(--badge-sell-bg); color: var(--badge-sell-text); border: 1px solid var(--badge-sell-border); }
+        .rd-badge.hold { background: var(--badge-hold-bg); color: var(--badge-hold-text); border: 1px solid var(--badge-hold-border); }
+    </style>
+</head>
+<body>
+    <a class="rd-back" href="/">&larr; Back to dashboard</a>
+
+    {% if detail is none %}
+        <div class="rd-section">
+            <h2>Run not found</h2>
+            <p class="rd-empty">
+                No stored data for run <code>{{ run_id }}</code>. Check the
+                run ID, or it may predate this database.
+            </p>
+        </div>
+    {% else %}
+
+        {% set overview = detail.overview %}
+        <div class="rd-section">
+            <h2>1. Overview</h2>
+            <div class="rd-kv"><span>Run ID</span><span>{{ overview.run_id }}</span></div>
+            <div class="rd-kv"><span>Symbol</span><span>{{ overview.symbol }}</span></div>
+            <div class="rd-kv"><span>Status</span><span>{{ overview.status }}</span></div>
+            <div class="rd-kv"><span>Started</span><span>{{ overview.started_at }}</span></div>
+            <div class="rd-kv"><span>Completed</span><span>{{ overview.completed_at }}</span></div>
+            {% set action = (detail.execution.action or "hold") %}
+            <div class="rd-kv">
+                <span>Final Decision</span>
+                <span class="rd-badge {{ action }}">{{ action|upper }}</span>
+            </div>
+        </div>
+
+        <div class="rd-section">
+            <h2>2. API Calls ({{ detail.api_calls|length }})</h2>
+            {% if detail.api_calls %}
+                {% for call in detail.api_calls %}
+                    <div class="rd-kv">
+                        <span>{{ call.timestamp }} — {{ call.agent }} / {{ call.event }}</span>
+                        <span>{{ call.status }}{% if call.duration_ms %} ({{ call.duration_ms }}ms){% endif %}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="rd-empty">No API call events recorded for this run.</p>
+            {% endif %}
+        </div>
+
+        <div class="rd-section">
+            <h2>3. Market Data</h2>
+            <pre class="rd-json">{{ detail.market_data | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>4. Technical Analysis</h2>
+            <pre class="rd-json">{{ detail.technical_analysis | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>5. Fundamentals</h2>
+            <pre class="rd-json">{{ detail.fundamentals | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>6. News</h2>
+            <pre class="rd-json">{{ detail.news | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>7. Risk</h2>
+            <pre class="rd-json">{{ detail.risk | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>8. Portfolio</h2>
+            <pre class="rd-json">{{ detail.portfolio | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>9. Strategies</h2>
+            {% if detail.strategies %}
+                {% for vote in detail.strategies %}
+                    <div class="rd-kv">
+                        <span>{{ vote.strategy or vote.name }}</span>
+                        <span>
+                            <span class="rd-badge {{ vote.decision }}">{{ (vote.decision or "hold")|upper }}</span>
+                            ({{ "%.0f"|format((vote.confidence or 0) * 100) }}%)
+                        </span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="rd-empty">No strategy votes recorded.</p>
+            {% endif %}
+        </div>
+
+        <div class="rd-section">
+            <h2>10. Execution</h2>
+            <pre class="rd-json">{{ detail.execution | tojson(indent=2) }}</pre>
+        </div>
+
+        <div class="rd-section">
+            <h2>11. Order</h2>
+            {% if detail.order %}
+                <pre class="rd-json">{{ detail.order | tojson(indent=2) }}</pre>
+            {% else %}
+                <p class="rd-empty">No order was placed for this run.</p>
+            {% endif %}
+        </div>
+
+        <div class="rd-section">
+            <h2>12. Errors ({{ detail.errors|length }})</h2>
+            {% if detail.errors %}
+                {% for err in detail.errors %}
+                    <div class="rd-kv">
+                        <span>{{ err.agent or err.stage }}{% if err.provider %} ({{ err.provider }}){% endif %}</span>
+                        <span>{{ err.error_type }}{% if err.status_code %} {{ err.status_code }}{% endif %} — {{ err.message }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="rd-empty">No errors recorded for this run.</p>
+            {% endif %}
+        </div>
+
+        <div class="rd-section">
+            <h2>13. Timing</h2>
+            <div class="rd-kv"><span>Started</span><span>{{ detail.timing.started_at }}</span></div>
+            <div class="rd-kv"><span>Completed</span><span>{{ detail.timing.completed_at }}</span></div>
+            <div class="rd-kv"><span>Event Count</span><span>{{ detail.timing.event_count }}</span></div>
+        </div>
+
+        <div class="rd-section">
+            <h2>14. Decision Trace</h2>
+            <pre class="rd-json">{{ detail.decision_trace | tojson(indent=2) }}</pre>
+        </div>
+
+    {% endif %}
+</body>
+</html>

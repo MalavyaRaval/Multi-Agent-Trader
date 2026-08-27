@@ -18,12 +18,16 @@ This agent ONLY gathers data.
 from __future__ import annotations
 
 import logging
+import time
+import zoneinfo
+from collections import deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Deque, Dict, Optional
 
 import pandas as pd
 
+from alpaca.data.enums import DataFeed
 from alpaca.data.requests import (
     StockBarsRequest,
     StockLatestQuoteRequest,
@@ -31,9 +35,11 @@ from alpaca.data.requests import (
 )
 from alpaca.data.timeframe import TimeFrame
 
+from config import ALPACA_DATA_FEED, ALPACA_DATA_RATE_LIMIT_PER_MIN
 from data.alpaca_client import get_market_data_client
 from data.cache import Cache
 from data.retry import retry
+from observability.data_quality import validate_market_data
 
 
 # ----------------------------------------------------------
@@ -46,6 +52,72 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("market_agent")
+
+try:
+    MARKET_DATA_FEED = DataFeed(ALPACA_DATA_FEED)
+except ValueError:
+    logger.warning("Unrecognized ALPACA_DATA_FEED=%r, falling back to IEX.", ALPACA_DATA_FEED)
+    MARKET_DATA_FEED = DataFeed.IEX
+
+
+# ----------------------------------------------------------
+# Rate-limit tracking (Phase 14)
+#
+# alpaca-py's REST layer parses the JSON body and discards the raw response,
+# so there is no header to read a true "requests remaining" count from. This
+# tracks how many real (non-cached) requests *this process* has issued in
+# the trailing 60s and compares it against Alpaca's documented plan limit --
+# an estimate of local usage, not an authoritative server-side count.
+# ----------------------------------------------------------
+
+_RATE_WINDOW_SECONDS = 60.0
+_request_log: Deque[float] = deque()
+
+
+def _record_api_request() -> None:
+    now = time.monotonic()
+    _request_log.append(now)
+    cutoff = now - _RATE_WINDOW_SECONDS
+    while _request_log and _request_log[0] < cutoff:
+        _request_log.popleft()
+
+
+def get_rate_limit_status() -> Dict[str, Any]:
+    """Best-effort local estimate of Market Data API usage. See module note above."""
+    now = time.monotonic()
+    cutoff = now - _RATE_WINDOW_SECONDS
+    while _request_log and _request_log[0] < cutoff:
+        _request_log.popleft()
+    used = len(_request_log)
+    return {
+        "requests_last_60s": used,
+        "limit_per_minute": ALPACA_DATA_RATE_LIMIT_PER_MIN,
+        "remaining_estimate": max(0, ALPACA_DATA_RATE_LIMIT_PER_MIN - used),
+        "note": "Requests made by this process only; not read from Alpaca response headers.",
+    }
+
+
+# ----------------------------------------------------------
+# Market-hours awareness (Phase 14)
+#
+# Deliberately simple: regular NYSE/Nasdaq session, America/New_York, Mon-Fri.
+# Does NOT account for market holidays or early closes -- a `False` reading
+# near a long weekend or holiday may be a holiday, not a data problem. Good
+# enough to distinguish "quote is 3 hours old and the market is open" (a real
+# staleness concern) from "...and the market is closed" (expected).
+# ----------------------------------------------------------
+
+_MARKET_TZ = zoneinfo.ZoneInfo("America/New_York")
+_MARKET_OPEN_MINUTES = 9 * 60 + 30
+_MARKET_CLOSE_MINUTES = 16 * 60
+
+
+def is_market_hours_now() -> bool:
+    now = datetime.now(_MARKET_TZ)
+    if now.weekday() >= 5:
+        return False
+    minutes_since_midnight = now.hour * 60 + now.minute
+    return _MARKET_OPEN_MINUTES <= minutes_since_midnight < _MARKET_CLOSE_MINUTES
 
 
 # ----------------------------------------------------------
@@ -94,6 +166,10 @@ class MarketSnapshot:
     source: str = "alpaca"
     status: str = "ok"
     data_quality: Optional[Dict[str, str]] = None
+    quality_report: Optional[Dict[str, Any]] = None
+    feed: str = ""
+    request_timings_ms: Optional[Dict[str, float]] = None
+    market_hours_open: bool = False
 
     def __post_init__(self) -> None:
         if self.generated_at is None:
@@ -129,8 +205,9 @@ class MarketAgent:
         symbol = symbol.upper()
         if self.client is None:
             raise RuntimeError(f"{symbol}: Alpaca client not initialized. Check ALPACA_API_KEY and ALPACA_SECRET_KEY.")
-        request = StockLatestQuoteRequest(symbol_or_symbols=[symbol], feed="iex")
+        request = StockLatestQuoteRequest(symbol_or_symbols=[symbol], feed=MARKET_DATA_FEED)
         try:
+            _record_api_request()
             quote = self.client.get_stock_latest_quote(request)[symbol]
         except Exception as exc:
             raise RuntimeError(
@@ -235,8 +312,9 @@ class MarketAgent:
         symbol = symbol.upper()
         if self.client is None:
             raise RuntimeError(f"{symbol}: Alpaca client not initialized. Check ALPACA_API_KEY and ALPACA_SECRET_KEY.")
-        request = StockLatestTradeRequest(symbol_or_symbols=[symbol], feed="iex")
+        request = StockLatestTradeRequest(symbol_or_symbols=[symbol], feed=MARKET_DATA_FEED)
         try:
+            _record_api_request()
             trade = self.client.get_stock_latest_trade(request)[symbol]
         except Exception as exc:
             raise RuntimeError(
@@ -317,10 +395,11 @@ class MarketAgent:
             timeframe=resolved_timeframe,
             start=start,
             end=end,
-            feed="iex",
+            feed=MARKET_DATA_FEED,
         )
 
         try:
+            _record_api_request()
             bars = self.client.get_stock_bars(request)
             df = bars.df
         except Exception as exc:
@@ -455,25 +534,34 @@ class MarketAgent:
                 bars=empty_bars,
                 metrics={"change_percent": None, "relative_volume": None, "spread": None},
                 generated_at=datetime.utcnow(),
+                market_hours_open=is_market_hours_now(),
             )
 
+        request_timings_ms: Dict[str, float] = {}
+
+        start = time.perf_counter()
         try:
             bars = self.historical_bars(symbol, timeframe=timeframe, days=days)
         except Exception as exc:
             logger.warning("%s: historical_bars failed: %s", symbol, exc)
             bars = empty_bars
+        request_timings_ms["bars"] = round((time.perf_counter() - start) * 1000, 1)
 
+        start = time.perf_counter()
         try:
             quote = self.latest_quote(symbol)
         except Exception as exc:
             logger.warning("%s: latest_quote failed: %s", symbol, exc)
             quote = None
+        request_timings_ms["quote"] = round((time.perf_counter() - start) * 1000, 1)
 
+        start = time.perf_counter()
         try:
             trade = self.latest_trade(symbol)
         except Exception as exc:
             logger.warning("%s: latest_trade failed: %s", symbol, exc)
             trade = None
+        request_timings_ms["trade"] = round((time.perf_counter() - start) * 1000, 1)
 
         metrics = self._compute_metrics(bars, trade, quote)
         if not metrics:
@@ -501,6 +589,8 @@ class MarketAgent:
         if quote is not None and getattr(quote, "status", "ok") == "invalid":
             data_quality["quote"] = "unavailable"
 
+        quality_report = validate_market_data(bars, symbol, min_bars=60)
+
         return MarketSnapshot(
             symbol=symbol,
             timeframe=str(timeframe),
@@ -512,6 +602,10 @@ class MarketAgent:
             source="alpaca",
             status=status,
             data_quality=data_quality,
+            quality_report=quality_report,
+            feed=str(MARKET_DATA_FEED.value),
+            request_timings_ms=request_timings_ms,
+            market_hours_open=is_market_hours_now(),
         )
 
     def diagnostics(self, symbol: str = "META") -> dict:

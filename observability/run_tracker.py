@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -10,6 +10,12 @@ def now_iso() -> str:
     """Current UTC time as a timezone-aware ISO-8601 string. Single source of
     truth so observability, memory, and optimization timestamps stay comparable."""
     return datetime.now(timezone.utc).isoformat()
+
+
+def now_iso_offset(seconds: float) -> str:
+    """Current UTC time plus `seconds`, as an ISO-8601 string (e.g. for a
+    scheduled "next run at" timestamp)."""
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()
 
 
 class RunTracker:

@@ -33,6 +33,23 @@ def test_diagnostics_endpoint(client):
     assert "gemini" in data["services"]
 
 
+def test_diagnostics_is_a_data_source_registry(client):
+    """PHASES_PLAN.md Phase 13 -- every service reports purpose + status,
+    Alpaca additionally reports its feed, so a missing service is immediately
+    visible instead of discovered mid-analysis."""
+    res = client.get("/api/diagnostics")
+    services = res.get_json()["services"]
+
+    for key in ("alpaca", "finnhub", "gemini"):
+        svc = services[key]
+        assert svc.get("purpose"), f"{key} missing a purpose"
+        assert svc.get("status") in {"connected", "missing_key", "missing_keys"}
+
+    assert services["alpaca"]["feed"] == "IEX"
+    assert isinstance(services["alpaca"]["market_hours_open"], bool)
+    assert services["alpaca"]["rate_limit"]["limit_per_minute"] > 0
+
+
 def test_chat_endpoint_technical_agent(client, monkeypatch):
     monkeypatch.setattr(
         "app.technical_agent.analyze",

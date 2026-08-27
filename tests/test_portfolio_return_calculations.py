@@ -3,6 +3,8 @@ from unittest.mock import Mock
 import pandas as pd
 import pytest
 
+from data.run_store import RunStore
+from observability.run_tracker import RunTracker
 from visualization.portfolio import (
     calculate_position_period_return,
     compute_range_return_pct,
@@ -12,8 +14,11 @@ from visualization.portfolio import (
 from orchestrator import Orchestrator
 
 
-def test_orchestrator_returns_run_id_for_each_analysis(monkeypatch):
+def test_orchestrator_returns_run_id_for_each_analysis(monkeypatch, tmp_path):
     orchestrator = Orchestrator()
+    orchestrator.run_store = RunStore(db_path=str(tmp_path / "test.db"))
+    original_tracker = orchestrator.run_tracker
+    orchestrator.run_tracker = RunTracker(base_dir=tmp_path)
 
     class FakeSnapshot:
         trade = Mock(price=100.0)
@@ -48,7 +53,7 @@ def test_orchestrator_returns_run_id_for_each_analysis(monkeypatch):
     monkeypatch.setattr(
         orchestrator.risk,
         "analyze",
-        lambda symbol: {"status": "risk analysis ready", "risk_level": "medium", "checks": {}},
+        lambda symbol, context=None: {"status": "risk analysis ready", "risk_level": "medium", "checks": {}},
     )
     monkeypatch.setattr(
         orchestrator.portfolio,
@@ -61,13 +66,17 @@ def test_orchestrator_returns_run_id_for_each_analysis(monkeypatch):
         lambda symbol, context=None: {"status": "execution analysis ready", "action": "hold", "confidence": 0.1, "reason": "test"},
     )
 
-    result = orchestrator.analyze_symbol("aapl")
+    try:
+        result = orchestrator.analyze_symbol("aapl")
+    finally:
+        orchestrator.run_tracker = original_tracker
 
     assert result["run_id"].startswith("RUN-")
     assert result["symbol"] == "AAPL"
     assert result["status"] == "completed"
     assert result["started_at"]
-    assert orchestrator.bus.get_messages(session_id=result["run_id"]) 
+    assert orchestrator.bus.get_messages(session_id=result["run_id"])
+    assert result["analyses"]["risk"]["status"] == "risk analysis ready"
 
 
 def test_compute_range_return_pct_uses_first_valid_equity_baseline():

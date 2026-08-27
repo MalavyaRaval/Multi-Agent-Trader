@@ -1,0 +1,4 @@
+{"run_id": "RUN-20260827-022220-AAPL", "agent": "orchestrator", "event": "run_started", "timestamp": "2026-08-27T02:22:20.711307+00:00", "status": "running", "symbol": "AAPL", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260827-022220-AAPL", "agent": "orchestrator", "event": "analysis_started", "timestamp": "2026-08-27T02:22:20.712512+00:00", "status": "running", "symbol": "AAPL", "endpoint": "analysis_start"}
+{"run_id": "RUN-20260827-022220-AAPL", "agent": "market_agent", "event": "data_quality_check", "timestamp": "2026-08-27T02:22:21.778321+00:00", "status": "success", "symbol": "AAPL", "endpoint": "validate_market_data", "dq_status": "PASS", "bars": 138, "duplicates": 0, "failed_checks": []}
+{"run_id": "RUN-20260827-022220-AAPL", "agent": "orchestrator", "event": "analysis_completed", "timestamp": "2026-08-27T02:22:27.759773+00:00", "status": "success", "symbol": "AAPL", "endpoint": "analysis_complete", "event_count": 3}

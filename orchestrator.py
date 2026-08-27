@@ -12,6 +12,7 @@ Central coordinator for the multi-agent trading system.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 import time
@@ -27,10 +28,12 @@ from agents.risk_agent import RiskAgent
 from agents.execution_agent import ExecutionAgent
 from agents.portfolio_agent import PortfolioAgent
 from indicators.multiframe import analyze_multiframe
+from data.run_store import RunStore
 from observability import RunTracker
-from observability.run_tracker import now_iso
+from observability.run_tracker import now_iso, now_iso_offset
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 class MessageBus:
@@ -133,6 +136,31 @@ class Orchestrator:
         self._thread: Optional[threading.Thread] = None
         self._last_analysis: Optional[Dict[str, Any]] = None
 
+        # PHASES_PLAN.md Phase 9 -- Autonomous Loop Monitor
+        self._autonomous_state: Dict[str, Any] = {
+            "status": "stopped",
+            "symbols": [],
+            "interval_seconds": None,
+            "started_at": None,
+            "last_run_at": None,
+            "next_run_at": None,
+            "day": None,
+            "runs_today": 0,
+            "successful": 0,
+            "warnings": 0,
+            "errors": 0,
+            "buy_count": 0,
+            "sell_count": 0,
+            "hold_count": 0,
+            "recent_runs": [],
+        }
+        self._autonomous_lock = threading.Lock()
+
+        # PHASES_PLAN.md Phase 11 -- Persistent Run History. Durable, SQLite-backed
+        # storage for full analyze_symbol() results, indexed by run_id. Supersedes
+        # Phase 10's original bounded in-memory cache, which didn't survive a restart.
+        self.run_store = RunStore()
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -231,7 +259,34 @@ class Orchestrator:
                     "⚠️ API WARNING: Market snapshot returned incomplete quote/trade data.",
                     session_id=session_id, symbol=symbol, category="api_diagnostic", status_code="warning"
                 )
-            analyses["market"] = {"metrics": snapshot.metrics} if snapshot and snapshot.metrics else {}
+
+            quality_report = getattr(snapshot, "quality_report", None) if snapshot else None
+            if quality_report:
+                dq_status = quality_report["status"]
+                dq_icon = "✅" if dq_status == "PASS" else "⚠️"
+                dq_detail = (
+                    f"{dq_icon} Data Quality: {dq_status} — {quality_report['bars']} bars, "
+                    f"{quality_report['duplicates']} duplicate(s), "
+                    f"freshness {quality_report['freshness_seconds']}s"
+                )
+                if quality_report["failed_checks"]:
+                    dq_detail += f" | Failed: {', '.join(quality_report['failed_checks'])}"
+                self.bus.publish(
+                    "market_agent", "technical_agent",
+                    dq_detail,
+                    quality_report,
+                    session_id=session_id, symbol=symbol, category="api_diagnostic",
+                    status_code="ok" if dq_status == "PASS" else "warning",
+                )
+                self.run_tracker.emit_event(
+                    "market_agent", "data_quality_check", run_id=run_id, symbol=symbol,
+                    status="success" if dq_status == "PASS" else "warning",
+                    endpoint="validate_market_data", dq_status=dq_status,
+                    bars=quality_report["bars"], duplicates=quality_report["duplicates"],
+                    failed_checks=quality_report["failed_checks"],
+                )
+
+            analyses["market"] = {"metrics": snapshot.metrics, "quality_report": quality_report} if snapshot and snapshot.metrics else {"quality_report": quality_report}
         except Exception as e:
             self.bus.publish(
                 "market_agent", "orchestrator",
@@ -432,10 +487,20 @@ class Orchestrator:
             raw_score = exec_decision.get("raw_score", 0.0)
             reasoning = exec_decision.get("detailed_reasoning", {})
             exec_summary = reasoning.get("executive_summary", exec_decision.get("reason", ""))
+            breakdown = exec_decision.get("score_breakdown") or {}
+
+            # PHASES_PLAN.md Phase 6: never show a bare action -- always pair it with
+            # the score against both thresholds so a HOLD is immediately explainable.
+            threshold_str = ""
+            if breakdown:
+                threshold_str = (
+                    f" | BUY ≥ {breakdown['buy_threshold']:+.2f}, "
+                    f"SELL ≤ {breakdown['sell_threshold']:+.2f}"
+                )
 
             self.bus.publish(
                 "execution_agent", "all",
-                f"🎯 FINAL DECISION: {action.upper()} {symbol} (Confidence: {confidence:.0%}, Combined Score: {raw_score:+.2f}). Rationale: {exec_summary}",
+                f"🎯 FINAL DECISION: {action.upper()} {symbol} (Confidence: {confidence:.0%}, Combined Score: {raw_score:+.2f}{threshold_str}). Rationale: {exec_summary}",
                 exec_decision,
                 session_id=session_id, symbol=symbol, category="decision_monologue"
             )
@@ -504,6 +569,10 @@ class Orchestrator:
             "observability": self.run_tracker.summary(run_id),
         }
         self._last_analysis = result
+        try:
+            self.run_store.save_run(result, events=self.run_tracker.get_events(run_id))
+        except Exception as exc:
+            logger.warning("Failed to persist run %s: %s", run_id, exc)
         return result
 
     def get_messages(self, since_index: int = 0) -> List[Dict[str, Any]]:
@@ -511,6 +580,22 @@ class Orchestrator:
 
     def get_last_analysis(self) -> Optional[Dict[str, Any]]:
         return self._last_analysis
+
+    def list_recent_runs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Lightweight index of persisted runs (for a run-history list view)."""
+        return self.run_store.list_runs(limit=limit)
+
+    def list_recent_errors(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """PHASES_PLAN.md Phase 12 -- Error Tracking: cross-run recent errors."""
+        return self.run_store.list_recent_errors(limit=limit)
+
+    def get_run_detail(self, run_id: str) -> Optional[Dict[str, Any]]:
+        """
+        PHASES_PLAN.md Phase 10/11 -- Run Detail Page, backed by Phase 11's
+        durable SQLite store. Returns None if run_id was never persisted (or
+        predates this server's Phase 11 upgrade).
+        """
+        return self.run_store.get_run(run_id)
 
     def analyze_symbol_multiframe(self, symbol: str, auto_execute: bool = False) -> Dict[str, Any]:
         """Run the full pipeline including multi-timeframe analysis."""
@@ -577,22 +662,116 @@ class Orchestrator:
         if self._running:
             return
         self._running = True
+        with self._autonomous_lock:
+            self._autonomous_state.update({
+                "status": "running",
+                "symbols": list(symbols),
+                "interval_seconds": interval_seconds,
+                "started_at": now_iso(),
+                "next_run_at": now_iso(),
+            })
         self._thread = threading.Thread(target=self._autonomous_loop, args=(symbols, interval_seconds), daemon=True)
         self._thread.start()
         self.bus.publish("orchestrator", "user", f"Autonomous trading loop started for {symbols} every {interval_seconds}s")
 
     def stop_autonomous(self) -> None:
         self._running = False
+        with self._autonomous_lock:
+            self._autonomous_state["status"] = "stopped"
+            self._autonomous_state["next_run_at"] = None
         self.bus.publish("orchestrator", "user", "Autonomous trading loop stopped")
+
+    @staticmethod
+    def _classify_stage_status(stage_result: Any) -> str:
+        """Loosely classify one agent's analysis dict into PASS/WARNING/ERROR/UNKNOWN
+        for the autonomous-loop monitor, tolerant of each agent's own status vocabulary
+        (e.g. "ok", "execution analysis ready", "news analysis skipped (no API key)")."""
+        if not isinstance(stage_result, dict):
+            return "UNKNOWN"
+        status_text = str(stage_result.get("status", "")).lower()
+        if not status_text:
+            return "UNKNOWN"
+        if "error" in status_text:
+            return "ERROR"
+        if any(token in status_text for token in ("warning", "skip", "partial", "insufficient")):
+            return "WARNING"
+        return "PASS"
+
+    def _record_autonomous_run(self, run_id: str, symbol: str, duration_seconds: float, result: Dict[str, Any]) -> None:
+        analyses = result.get("analyses", {}) if isinstance(result, dict) else {}
+        stage_statuses = {stage: self._classify_stage_status(analyses.get(stage)) for stage in
+                           ("market", "technical", "fundamental", "news", "risk", "portfolio", "execution")}
+
+        if any(s == "ERROR" for s in stage_statuses.values()):
+            run_status = "ERROR"
+        elif any(s == "WARNING" for s in stage_statuses.values()):
+            run_status = "WARNING"
+        else:
+            run_status = "SUCCESS"
+
+        action = str(analyses.get("execution", {}).get("action", "hold")).lower()
+        warnings_text = [
+            f"{stage.capitalize()}: {analyses.get(stage, {}).get('status')}"
+            for stage, status in stage_statuses.items()
+            if status in ("WARNING", "ERROR")
+        ]
+
+        run_summary = {
+            "run_id": run_id,
+            "symbol": symbol,
+            "timestamp": now_iso(),
+            "duration_seconds": round(duration_seconds, 2),
+            "status": run_status,
+            "stages": stage_statuses,
+            "action": action,
+            "warnings": warnings_text,
+        }
+
+        today = now_iso()[:10]
+        with self._autonomous_lock:
+            state = self._autonomous_state
+            if state["day"] != today:
+                state["day"] = today
+                state["runs_today"] = 0
+                state["successful"] = 0
+                state["warnings"] = 0
+                state["errors"] = 0
+                state["buy_count"] = 0
+                state["sell_count"] = 0
+                state["hold_count"] = 0
+
+            state["runs_today"] += 1
+            state["last_run_at"] = run_summary["timestamp"]
+            if run_status == "SUCCESS":
+                state["successful"] += 1
+            elif run_status == "WARNING":
+                state["warnings"] += 1
+            else:
+                state["errors"] += 1
+
+            if action in ("buy", "sell", "hold"):
+                state[f"{action}_count"] += 1
+
+            state["recent_runs"].insert(0, run_summary)
+            del state["recent_runs"][50:]  # cap history
+
+    def get_autonomous_status(self) -> Dict[str, Any]:
+        with self._autonomous_lock:
+            return dict(self._autonomous_state)
 
     def _autonomous_loop(self, symbols: List[str], interval_seconds: int) -> None:
         while self._running:
             for symbol in symbols:
                 if not self._running:
                     break
-                self.analyze_symbol(symbol, auto_execute=True)
+                started = time.perf_counter()
+                result = self.analyze_symbol(symbol, auto_execute=True)
+                duration = time.perf_counter() - started
+                self._record_autonomous_run(result.get("run_id", ""), symbol, duration, result)
                 time.sleep(5)  # small gap between symbols
             if self._running:
+                with self._autonomous_lock:
+                    self._autonomous_state["next_run_at"] = now_iso_offset(interval_seconds)
                 time.sleep(interval_seconds)
 
 

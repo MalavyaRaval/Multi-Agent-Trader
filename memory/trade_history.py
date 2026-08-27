@@ -64,13 +64,17 @@ class TradeHistory:
         })
 
     def record_analysis(self, symbol: str, action: str, confidence: float,
-                        reason: str, analyses: Optional[Dict] = None) -> None:
+                        reason: str, analyses: Optional[Dict] = None,
+                        decision_status: Optional[str] = None,
+                        hold_reason: Optional[str] = None) -> None:
         self.record({
             "type": "analysis",
             "symbol": symbol,
             "action": action,
             "confidence": confidence,
             "reason": reason,
+            "decision_status": decision_status,
+            "hold_reason": hold_reason,
             "analyses": analyses or {},
         })
 
@@ -128,6 +132,45 @@ class TradeHistory:
             "avg_win": round(avg_win, 2),
             "avg_loss": round(avg_loss, 2),
             "recent": orders[-5:][::-1],
+        }
+
+    def get_decision_stats(self, limit: int = 100) -> Dict[str, Any]:
+        """
+        PHASES_PLAN.md Phase 8 -- Find Out Why HOLD Happens.
+
+        Aggregates the most recent `limit` analysis records into a BUY/SELL/HOLD
+        breakdown and, for HOLD, a count per hold_reason bucket (see
+        agents.execution_agent.HOLD_REASON_LABELS). Reads records already
+        persisted by record_analysis(); does not re-run any analysis.
+        """
+        with self._lock:
+            history = self._read()
+
+        analyses = [h for h in history if h.get("type") == "analysis"][-limit:]
+        total = len(analyses)
+
+        action_counts = {"buy": 0, "sell": 0, "hold": 0}
+        hold_reason_counts: Dict[str, int] = {}
+
+        for record in analyses:
+            action = str(record.get("action", "hold")).lower()
+            if action not in action_counts:
+                action = "hold"
+            action_counts[action] += 1
+
+            if action == "hold":
+                reason_code = record.get("hold_reason") or "below_confidence_threshold"
+                hold_reason_counts[reason_code] = hold_reason_counts.get(reason_code, 0) + 1
+
+        def pct(count: int) -> float:
+            return round(count / total * 100, 1) if total else 0.0
+
+        return {
+            "sample_size": total,
+            "action_counts": action_counts,
+            "action_percentages": {action: pct(count) for action, count in action_counts.items()},
+            "hold_reason_counts": hold_reason_counts,
+            "hold_count": action_counts["hold"],
         }
 
     def clear(self) -> None:

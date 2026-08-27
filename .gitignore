@@ -10,3 +10,12 @@ venv/
 
 # Pytest
 .pytest_cache/
+
+# PHASES_PLAN.md Phase 11 -- SQLite run-history store (regenerable runtime state)
+data/trading_system.db
+data/trading_system.db-journal
+data/trading_system.db-wal
+data/trading_system.db-shm
+
+# Regenerable runtime state accumulated by running the app / analyzing symbols
+memory/trade_history.json

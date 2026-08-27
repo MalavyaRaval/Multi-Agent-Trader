@@ -213,6 +213,59 @@
                         Status: Idle
                     </div>
 
+                    <!-- PHASES_PLAN.md Phase 9 -- Autonomous Loop Monitor -->
+                    <div id="autonomous-monitor" style="
+                        margin-top:10px;
+                        font-size:0.75rem;
+                        color:var(--text-muted);
+                        border-top:1px solid var(--border-color);
+                        padding-top:8px;
+                        display:none;
+                    ">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Interval</span><span id="auto-interval">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Symbols</span><span id="auto-symbols">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Last Run</span><span id="auto-last-run">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>Next Run</span><span id="auto-next-run">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:6px;">
+                            <span>Runs Today</span><span id="auto-runs-today">0</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>🟢 / 🟡 / 🔴</span><span id="auto-run-outcomes">0 / 0 / 0</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span>BUY / SELL / HOLD</span><span id="auto-action-counts">0 / 0 / 0</span>
+                        </div>
+                        <div id="auto-recent-runs" style="
+                            margin-top:8px;
+                            max-height:130px;
+                            overflow-y:auto;
+                        "></div>
+                    </div>
+
+                </div>
+
+
+                <!-- PHASES_PLAN.md Phase 12 -- ERROR TRACKING -->
+                <div class="card">
+
+                    <div class="card-header">
+                        <h3>🚨 Errors</h3>
+                    </div>
+
+                    <div id="errors-panel" style="font-size:0.78rem;">
+                        <div style="color:var(--text-muted); font-style:italic;">
+                            No errors recorded yet.
+                        </div>
+                    </div>
+
                 </div>
 
             </aside>
@@ -1047,6 +1100,11 @@
                                     </option>
 
                                 </select>
+
+                                <button type="button" id="view-run-report-btn" class="btn btn-secondary btn-small"
+                                    style="display:none;" onclick="openSelectedRunReport()">
+                                    📄 Full Report
+                                </button>
 
                             </div>
 
